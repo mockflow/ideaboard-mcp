@@ -1,0 +1,51 @@
+{
+  "name": "@mockflow/ideaboard-mcp",
+  "version": "1.0.0",
+  "description": "Local MCP server for MockFlow IdeaBoard - enables Claude Code, Cursor, VS Code Copilot and other IDE clients to create visualizations",
+  "main": "lib/server.js",
+  "bin": {
+    "mockflow-mcp": "./bin/mockflow-mcp.js"
+  },
+  "scripts": {
+    "start": "node bin/mockflow-mcp.js",
+    "prepublish": "cp ../ideaboard-mcp/mcpHandler.js ./mcpHandler.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.0",
+    "axios": "^1.6.0",
+    "body-parser": "^1.20.2",
+    "open": "^9.1.0"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "mcpHandler.js",
+    "ideaboard-mcp-component-registry.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "mcp",
+    "claude",
+    "claude-code",
+    "cursor",
+    "copilot",
+    "anthropic",
+    "mockflow",
+    "ideaboard",
+    "visualization",
+    "diagram"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mockflow/ideaboard-mcp.git"
+  },
+  "homepage": "https://github.com/mockflow/ideaboard-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/mockflow/ideaboard-mcp/issues"
+  },
+  "author": "MockFlow (https://mockflow.com)",
+  "license": "MIT"
+}
