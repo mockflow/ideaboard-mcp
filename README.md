@@ -1,90 +1,66 @@
-# MockFlow IdeaBoard MCP
+# MockFlow IdeaBoard MCP Server
 
-Connect AI-powered IDE clients (Claude Code, Cursor, VS Code Copilot) to [MockFlow IdeaBoard](https://mockflow.com) to create flowcharts, architecture diagrams, mind maps, kanban boards, and 12+ other visualization types — all from natural language prompts.
+[![npm version](https://img.shields.io/npm/v/@mockflow/ideaboard-mcp.svg)](https://www.npmjs.com/package/@mockflow/ideaboard-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## Two Ways to Use
+Local [MCP](https://modelcontextprotocol.io/) server for [MockFlow IdeaBoard](https://mockflow.com). Create flowcharts, mind maps, kanban boards, cloud architecture diagrams, and 12+ other visualization types — directly from AI-powered coding tools.
 
-### Option 1: MockFlow Desktop App (Recommended)
+Works with **Claude Code**, **Cursor**, **VS Code Copilot**, **Codex**, and any MCP-compatible client.
 
-If you use the [MockFlow Desktop App](https://mockflow.com/apps/wireframepro/), it includes a **built-in local MCP server** that starts automatically when you launch the app.
+## Quick Start
 
-**How it works:** Visualizations are rendered **directly in your open board** — no remote server calls, no image export. The AI creates components right on your canvas.
-
-```
-You in Claude Code: "Create an architecture diagram for this codebase"
-    |
-Claude Code reads your files, understands the code
-    |
-Calls render_cloudarchitecture via MCP (localhost:21193)
-    |
-MCP server passes data to the desktop app
-    |
-Diagram appears directly in your open IdeaBoard
-```
-
-**Setup:**
-
-1. Open MockFlow Desktop App and log in
-2. Open an IdeaBoard project (the board you want to add visualizations to)
-3. Add the MCP to your AI client (see [Client Setup](#client-setup) below)
-4. Start prompting!
-
-### Option 2: Standalone CLI (No Desktop App)
-
-For users who don't have the desktop app. Runs as a standalone process and creates boards via the MockFlow cloud backend.
-
-**How it works:** Tool calls are proxied to `app.mockflow.com`, which creates a new board and returns a URL you can open in your browser.
-
-```
-You in Claude Code: "Create a flowchart for the login process"
-    |
-Claude Code calls render_flowchart via MCP (localhost:21193)
-    |
-CLI server proxies to app.mockflow.com
-    |
-New board created → URL returned
-    |
-You open the URL in your browser to view/edit
-```
-
-**Setup:**
+### 1. Install
 
 ```bash
-# Install globally
 npm install -g @mockflow/ideaboard-mcp
+```
 
-# One-time login
+Or run without installing:
+
+```bash
+npx @mockflow/ideaboard-mcp
+```
+
+### 2. Authenticate
+
+```bash
 mockflow-mcp login
-# Opens browser → get your API key from app.mockflow.com/mcp-apikey ��� paste it
+```
 
-# Start the server
+This opens your browser to MockFlow's login page. Log in with your MockFlow account and authorize access. The token is saved automatically to `~/.mockflow/credentials.json` (one-time setup).
+
+### 3. Start the Server
+
+```bash
 mockflow-mcp
 ```
 
-### Comparison
+You'll see:
 
-| | Desktop App | Standalone CLI |
-|---|---|---|
-| **Rendering** | Directly in your open board | Creates new board, returns URL |
-| **Speed** | Instant (local) | Depends on network |
-| **Auth** | Automatic (you're logged in) | API key (one-time setup) |
-| **Requires** | Desktop app + board open | Just the CLI running |
-| **Backend** | None needed | app.mockflow.com |
-| **Best for** | Active design work | Quick visualizations |
+```
+MockFlow IdeaBoard - Local MCP Server
+======================================
+User: you@example.com
 
-## Client Setup
+MCP server running on http://localhost:21193/mcp
 
-Both options run on `localhost:21193`. Use the same setup for either one.
+Add to your AI client:
 
-### Claude Code
+  Claude Code:
+    claude mcp add --transport http -s user mockflow-ideaboard http://localhost:21193/mcp
+```
+
+### 4. Connect Your AI Client
+
+#### Claude Code
 
 ```bash
 claude mcp add --transport http -s user mockflow-ideaboard http://localhost:21193/mcp
 ```
 
-### Cursor
+#### Cursor
 
-Settings > Cursor Settings > Tools & MCP, add:
+Settings > Cursor Settings > Tools & MCP:
 
 ```json
 {
@@ -96,7 +72,7 @@ Settings > Cursor Settings > Tools & MCP, add:
 }
 ```
 
-### VS Code Copilot
+#### VS Code Copilot
 
 Create `.vscode/mcp.json` in your project:
 
@@ -111,72 +87,172 @@ Create `.vscode/mcp.json` in your project:
 }
 ```
 
-### Codex (OpenAI)
+#### Codex (OpenAI)
 
 ```bash
 codex mcp add mockflow-ideaboard http://localhost:21193/mcp
 ```
 
-## Available Visualizations (16 tools)
+### 5. Start Prompting
+
+Ask your AI client:
+
+```
+"Create a flowchart showing the user registration process"
+"Create a kanban board for the product launch"
+"Draw an AWS architecture diagram with API Gateway, Lambda, and DynamoDB"
+"Create a mind map about project management methodologies"
+"Map out the database schema as an ER diagram"
+```
+
+The server creates a new IdeaBoard and returns the URL. Open it in your browser to view and edit.
+
+## Available Tools (16)
 
 | Tool | Description |
 |------|-------------|
-| `render_flowchart` | Flowcharts, UML, circuit, bio, P&ID, sketchy, 3D, web/mobile layout |
-| `render_mindmap` | Hierarchical mind maps |
-| `render_cloudarchitecture` | AWS, Azure, GCP, Cisco network diagrams |
-| `render_chart` | Pie, bar, line, area, scatter, bubble, radar charts |
-| `render_table` | Data tables from CSV |
-| `render_spreadsheet` | Spreadsheets with formulas and formatting |
-| `render_kanban` | Kanban project management boards |
-| `render_gantt` | Gantt timeline charts with tasks and phases |
-| `render_calendar` | Calendar with events |
-| `render_whiteboard` | Freeform sticky notes and sections |
-| `render_customerjourney` | Customer journey maps with stages and metrics |
-| `render_storyboard` | Film/video storyboards with scene frames |
-| `render_database` | Entity-relationship (ER) diagrams |
-| `render_swimlane` | Cross-functional swimlane diagrams |
-| `render_map` | Geographic maps with location markers |
-| `render_markdown` | Rich documents with AI-generated images |
+| `render_flowchart` | Flowcharts, UML, circuit, bio, P&ID, sketchy, 3D, web/mobile layout (11 categories) |
+| `render_mindmap` | Hierarchical mind maps with balanced left/right branches |
+| `render_cloudarchitecture` | AWS, Azure, GCP, Cisco network diagrams with VPC/subnet grouping |
+| `render_chart` | Pie, bar, line, area, scatter, bubble, radar charts from CSV data |
+| `render_table` | Data tables from CSV format |
+| `render_spreadsheet` | Spreadsheets with formulas (SUM, AVERAGE, IF, etc.) and formatting |
+| `render_kanban` | Kanban boards with columns, cards, priorities, and due dates |
+| `render_gantt` | Gantt timeline charts with phases, tasks, and progress tracking |
+| `render_calendar` | Calendars with timed and all-day events |
+| `render_whiteboard` | Freeform whiteboards with sticky notes and sections |
+| `render_customerjourney` | Customer journey maps with stages, activities, and satisfaction metrics |
+| `render_storyboard` | Film/video storyboards with cinematic frame descriptions |
+| `render_database` | Entity-relationship (ER) diagrams with tables, columns, and foreign keys |
+| `render_swimlane` | Cross-functional swimlane diagrams with actor lanes |
+| `render_map` | Geographic maps with location markers and coordinates |
+| `render_markdown` | Rich documents with markdown formatting and AI-generated images |
 
-## Example Prompts
+## How It Works
 
-Once connected, try these in Claude Code or Cursor:
-
-- *"Analyze this codebase and create a system architecture diagram"*
-- *"Create a flowchart showing the authentication flow in this project"*
-- *"Map out the database schema as an ER diagram"*
-- *"Create a kanban board for the remaining TODOs in this project"*
-- *"Visualize the API endpoints as a swimlane diagram"*
-- *"Create a mind map of the project's module structure"*
-- *"Draw an AWS architecture diagram for this microservices setup"*
-
-## CLI Options
-
-```bash
-mockflow-mcp                    # Start on default port (21193)
-mockflow-mcp --port=8888        # Custom port
-mockflow-mcp login              # Set up API key credentials
-mockflow-mcp --help             # Show usage and client setup instructions
+```
+You: "Create a kanban board for the sprint"
+  |
+  v
+AI Client (Claude Code / Cursor / VS Code)
+  |  generates structured data (columns, cards, etc.)
+  v
+MCP Server (localhost:21193)
+  |  proxies to MockFlow backend
+  v
+app.mockflow.com
+  |  creates IdeaBoard with visualization
+  v
+Returns board URL → open in browser to view/edit
 ```
 
-## Troubleshooting
+1. Your AI client reads your codebase or follows your prompt
+2. It calls the appropriate `render_*` tool via MCP with structured data
+3. The local MCP server forwards the request to `app.mockflow.com`
+4. MockFlow creates the board and returns a URL
+5. You open the URL to view, edit, and share the visualization
 
-**"No IdeaBoard is open in the desktop app"**
-Open an IdeaBoard project in the desktop app before running prompts.
+## CLI Reference
 
-**Port 21193 already in use**
-The desktop app or another instance is using the port. Use `mockflow-mcp --port=8888` for the CLI, or close the other instance.
-
-**Claude Code doesn't use the MCP tools**
-Be explicit: *"Using the mockflow-ideaboard tool, create a flowchart for..."* or *"Create a flowchart on IdeaBoard"*. Claude Code has many tools available and may default to generating code unless you mention IdeaBoard.
-
-**Verify the server is running**
 ```bash
-curl http://localhost:21193/mcp
+mockflow-mcp                     # Start server on default port (21193)
+mockflow-mcp --port=8888         # Start on custom port
+mockflow-mcp login               # Set up API key (one-time)
+mockflow-mcp --help              # Show usage and setup instructions
 ```
 
-## Debug Mode
+## Configuration
+
+### Credentials
+
+Stored in `~/.mockflow/credentials.json` (created automatically by `mockflow-mcp login`):
+
+```json
+{
+  "access_token": "...",
+  "userid": "you@example.com",
+  "clientid": "your-client-id"
+}
+```
+
+### Custom Port
+
+If port 21193 is in use:
+
+```bash
+mockflow-mcp --port=8888
+```
+
+Then update your AI client config to use the new port.
+
+### Debug Mode
+
+For verbose logging:
 
 ```bash
 MCP_DEBUG=1 mockflow-mcp
 ```
+
+## Verify Installation
+
+```bash
+# Check server is running
+curl http://localhost:21193/mcp
+
+# List available tools
+curl -X POST http://localhost:21193/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+```
+
+## Troubleshooting
+
+### "No credentials found"
+
+Run `mockflow-mcp login` to authenticate with your MockFlow account.
+
+### Port already in use
+
+Another process is using port 21193. Either:
+- Use a different port: `mockflow-mcp --port=8888`
+- Kill the process: `lsof -ti :21193 | xargs kill`
+
+### AI client doesn't use IdeaBoard tools
+
+Be explicit in your prompt: *"Using mockflow-ideaboard, create a flowchart for..."*. AI clients have many tools and may default to generating code.
+
+### Tool call fails with backend error
+
+Ensure you have a valid login and internet connection. The server needs to reach `app.mockflow.com`. If your token expired, run `mockflow-mcp login` again.
+
+## Example Prompts
+
+### Codebase Visualization
+```
+"Analyze this codebase and create a system architecture diagram"
+"Create a flowchart showing the authentication flow in this project"
+"Map out the database schema as an ER diagram"
+"Visualize the API endpoints as a swimlane diagram"
+```
+
+### Project Management
+```
+"Create a kanban board for the remaining TODOs in this project"
+"Create a gantt chart for the Q2 product roadmap"
+"Create a calendar with the team's sprint events for April"
+```
+
+### Brainstorming
+```
+"Create a mind map about microservices architecture patterns"
+"Create a whiteboard with sticky notes for the retrospective"
+"Create a customer journey map for the onboarding experience"
+```
+
+## Contributing
+
+Issues and pull requests are welcome at [github.com/mockflow/ideaboard-mcp](https://github.com/mockflow/ideaboard-mcp).
+
+## License
+
+[MIT](LICENSE)
