@@ -7,6 +7,8 @@ Local [MCP](https://modelcontextprotocol.io/) server for [MockFlow IdeaBoard](ht
 
 Works with **Claude Code**, **Cursor**, **VS Code Copilot**, **Codex**, and any MCP-compatible client.
 
+> **Note:** MCP servers may not provide the full experience for certain types of generation involving images, AI art, or complex designs. For the best seamless experience, use the [Mida AI agent](https://mockflow.com) inside the MockFlow editor.
+
 ## Quick Start
 
 ### 1. Install
@@ -248,6 +250,13 @@ Ensure you have a valid login and internet connection. The server needs to reach
 "Create a whiteboard with sticky notes for the retrospective"
 "Create a customer journey map for the onboarding experience"
 ```
+
+## Links
+
+- **npm:** [npmjs.com/package/@mockflow/ideaboard-mcp](https://www.npmjs.com/package/@mockflow/ideaboard-mcp)
+- **GitHub:** [github.com/mockflow/ideaboard-mcp](https://github.com/mockflow/ideaboard-mcp)
+- **MockFlow:** [mockflow.com](https://mockflow.com)
+- **WireframePro MCP:** [@mockflow/wireframepro-mcp](https://www.npmjs.com/package/@mockflow/wireframepro-mcp) — convert HTML to wireframes
 
 ## Contributing
 
