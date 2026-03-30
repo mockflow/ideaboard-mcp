@@ -251,6 +251,45 @@ Ensure you have a valid login and internet connection. The server needs to reach
 "Create a customer journey map for the onboarding experience"
 ```
 
+## AI Skills (Claude Code)
+
+Skills are pre-built prompts that teach Claude Code how to use IdeaBoard MCP tools for specific tasks. Instead of writing detailed prompts every time, skills trigger automatically when Claude detects a matching intent.
+
+### Install a Skill
+
+Copy a skill file to your Claude Code skills directory:
+
+```bash
+mkdir -p ~/.claude/skills/mockflow-decision-flowchart
+# Copy SKILL.md into the folder (see skills/ directory in this repo)
+```
+
+### Available Skills
+
+| Skill | Trigger | What it creates |
+|---|---|---|
+| `mockflow-decision-flowchart` | "Should I buy or rent?", "Help me decide between..." | Yes/No decision tree flowchart |
+
+More skills available in the [MockFlow Recipe Library](https://mockflow.com/promptlibrary/) — each recipe can be used as a Claude Code skill.
+
+### Create Custom Skills
+
+Use the **AI Prompt Box** inside IdeaBoard to create and test custom prompts, then export them as Claude Code skills. See the `skills/` directory for the SKILL.md format.
+
+### Skill Format
+
+```markdown
+---
+name: skill-name
+description: When to use this skill
+allowed-tools: MCP(render_flowchart)
+user-invocable: true
+---
+
+# Instructions for Claude Code
+...
+```
+
 ## Links
 
 - **npm:** [npmjs.com/package/@mockflow/ideaboard-mcp](https://www.npmjs.com/package/@mockflow/ideaboard-mcp)

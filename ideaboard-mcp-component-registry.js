@@ -423,7 +423,7 @@ IMPORTANT: Always display the returned URL to the user.`,
 
         // Client-side rendering (showResults gdata mapping)
         clientAitype: 'gencomp',
-        clientComp: 'MF_Document_ID',
+        clientComp: 'MF_Markdown2_ID',
         clientDataField: 'generatedDoc',
         clientPrompt: 'doc',
         clientPromptField: null,
@@ -959,7 +959,7 @@ IMPORTANT: Always display the returned URL to the user.`,
 
         // Client-side rendering (showResults gdata mapping)
         clientAitype: 'gencomp',
-        clientComp: 'MF_Gantt_ID',
+        clientComp: 'MF_GanttChart_ID',
         clientDataField: 'generatedtext',
         clientPrompt: 'gantt',
         clientPromptField: null,
