@@ -26,7 +26,7 @@ npx @mockflow/ideaboard-mcp
 ### 2. Authenticate
 
 ```bash
-mockflow-mcp login
+mockflow-ideaboard-mcp login
 ```
 
 This opens your browser to MockFlow's login page. Log in with your MockFlow account and authorize access. The token is saved automatically to `~/.mockflow/credentials.json` (one-time setup).
@@ -34,7 +34,7 @@ This opens your browser to MockFlow's login page. Log in with your MockFlow acco
 ### 3. Start the Server
 
 ```bash
-mockflow-mcp
+mockflow-ideaboard-mcp
 ```
 
 You'll see:
@@ -157,17 +157,17 @@ Returns board URL → open in browser to view/edit
 ## CLI Reference
 
 ```bash
-mockflow-mcp                     # Start server on default port (21193)
-mockflow-mcp --port=8888         # Start on custom port
-mockflow-mcp login               # Set up API key (one-time)
-mockflow-mcp --help              # Show usage and setup instructions
+mockflow-ideaboard-mcp                     # Start server on default port (21193)
+mockflow-ideaboard-mcp --port=8888         # Start on custom port
+mockflow-ideaboard-mcp login               # Set up API key (one-time)
+mockflow-ideaboard-mcp --help              # Show usage and setup instructions
 ```
 
 ## Configuration
 
 ### Credentials
 
-Stored in `~/.mockflow/credentials.json` (created automatically by `mockflow-mcp login`):
+Stored in `~/.mockflow/credentials.json` (created automatically by `mockflow-ideaboard-mcp login`):
 
 ```json
 {
@@ -182,7 +182,7 @@ Stored in `~/.mockflow/credentials.json` (created automatically by `mockflow-mcp
 If port 21193 is in use:
 
 ```bash
-mockflow-mcp --port=8888
+mockflow-ideaboard-mcp --port=8888
 ```
 
 Then update your AI client config to use the new port.
@@ -192,7 +192,7 @@ Then update your AI client config to use the new port.
 For verbose logging:
 
 ```bash
-MCP_DEBUG=1 mockflow-mcp
+MCP_DEBUG=1 mockflow-ideaboard-mcp
 ```
 
 ## Verify Installation
@@ -211,12 +211,12 @@ curl -X POST http://localhost:21193/mcp \
 
 ### "No credentials found"
 
-Run `mockflow-mcp login` to authenticate with your MockFlow account.
+Run `mockflow-ideaboard-mcp login` to authenticate with your MockFlow account.
 
 ### Port already in use
 
 Another process is using port 21193. Either:
-- Use a different port: `mockflow-mcp --port=8888`
+- Use a different port: `mockflow-ideaboard-mcp --port=8888`
 - Kill the process: `lsof -ti :21193 | xargs kill`
 
 ### AI client doesn't use IdeaBoard tools
@@ -225,7 +225,7 @@ Be explicit in your prompt: *"Using mockflow-ideaboard, create a flowchart for..
 
 ### Tool call fails with backend error
 
-Ensure you have a valid login and internet connection. The server needs to reach `app.mockflow.com`. If your token expired, run `mockflow-mcp login` again.
+Ensure you have a valid login and internet connection. The server needs to reach `app.mockflow.com`. If your token expired, run `mockflow-ideaboard-mcp login` again.
 
 ## Example Prompts
 

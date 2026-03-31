@@ -4,10 +4,10 @@
  * MockFlow IdeaBoard MCP - CLI Entry Point
  *
  * Commands:
- *   mockflow-mcp                  Start local MCP server (default port 21193)
- *   mockflow-mcp --port=8888      Start on custom port
- *   mockflow-mcp login            Set up API key credentials
- *   mockflow-mcp --help           Show usage
+ *   mockflow-ideaboard-mcp                  Start local MCP server (default port 21193)
+ *   mockflow-ideaboard-mcp --port=8888      Start on custom port
+ *   mockflow-ideaboard-mcp login            Set up API key credentials
+ *   mockflow-ideaboard-mcp --help           Show usage
  */
 
 var args = process.argv.slice(2);
@@ -15,20 +15,26 @@ var command = args[0];
 
 if (command === 'login') {
 	require('../lib/auth').login();
+} else if (command === 'logout') {
+	console.log('');
+	console.log('To logout, remove your credentials file:');
+	console.log('  rm ~/.mockflow/credentials.json');
+	console.log('');
 } else if (command === '--help' || command === '-h' || command === 'help') {
 	console.log('');
 	console.log('MockFlow IdeaBoard MCP - Local MCP Server');
 	console.log('');
 	console.log('Usage:');
-	console.log('  mockflow-mcp                  Start local MCP server');
-	console.log('  mockflow-mcp --port=<number>  Start on custom port (default: 21193)');
-	console.log('  mockflow-mcp --space=<id>     Create projects in a specific design space');
-	console.log('  mockflow-mcp login            Set up credentials');
-	console.log('  mockflow-mcp --help           Show this help');
+	console.log('  mockflow-ideaboard-mcp                  Start local MCP server');
+	console.log('  mockflow-ideaboard-mcp --port=<number>  Start on custom port (default: 21193)');
+	console.log('  mockflow-ideaboard-mcp --space=<id>     Create projects in a specific design space');
+	console.log('  mockflow-ideaboard-mcp login            Set up credentials');
+	console.log('  mockflow-ideaboard-mcp logout           Show how to remove credentials');
+	console.log('  mockflow-ideaboard-mcp --help           Show this help');
 	console.log('');
 	console.log('Setup:');
-	console.log('  1. Run "mockflow-mcp login" to save your API key');
-	console.log('  2. Run "mockflow-mcp" to start the server');
+	console.log('  1. Run "mockflow-ideaboard-mcp login" to save your API key');
+	console.log('  2. Run "mockflow-ideaboard-mcp" to start the server');
 	console.log('  3. Add to your AI client:');
 	console.log('');
 	console.log('     Claude Code:');
