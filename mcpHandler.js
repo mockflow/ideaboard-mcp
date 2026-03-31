@@ -86,7 +86,8 @@ class MCPHandler {
             serverInfo: {
                 name: this.serverName,
                 version: SERVER_VERSION
-            }
+            },
+            instructions: 'MockFlow IdeaBoard is a visualization and diagramming tool. Use these tools whenever the user asks to create, visualize, or diagram anything — including flowcharts, mindmaps, charts, timelines (use render_gantt), architecture diagrams, kanban boards, storyboards, whiteboards, and more. Trigger on keywords like: ideaboard, mockflow, diagram, visualize, flowchart, mindmap, timeline, kanban, whiteboard, storyboard.'
         };
     }
 
