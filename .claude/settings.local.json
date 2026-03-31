@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /Users/pbaskaran/git/MockFlow-Website/MockFlow-Website -type f -path *mcp*oauth*)",
+      "Bash(grep -rn mockflow-mcp /Users/pbaskaran/git/ideaboard-mcp/ /Users/pbaskaran/git/wireframepro-mcp/ /Users/pbaskaran/git/MockFlow-Desktop2/MockFlow-Desktop2/ui/ideaboard/dialogs.html /Users/pbaskaran/git/MockFlow-WireframePro/MockFlow-WireframePro/WebContent/ui/ideaboard/dialogs.jsp /Users/pbaskaran/git/MockFlow-WireframePro/MockFlow-WireframePro/MCP_README.md /Users/pbaskaran/git/MockFlow-Website/MockFlow-Website/WebContent/includes/common/footerlinks.jsp /Users/pbaskaran/git/MockFlow-Website/MockFlow-Website/WebContent/mcp/ --include=*.js --include=*.jsp --include=*.json --include=*.html --include=*.md)"
+    ]
+  }
+}
