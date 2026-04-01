@@ -272,24 +272,37 @@ IMPORTANT: Always display the returned URL to the user.`,
         mcpToolName: 'render_chart',
         mcpDescription: `Create charts including pie, bar, line, area, scatter, bubble, and radar charts.
 
+CRITICAL: SINGLE-SERIES vs MULTI-SERIES DATA FORMATS:
+
+For SINGLE series (one line/area/bar over many categories):
+Format: "Legends,SeriesName\\nCategory1,Value1\\nCategory2,Value2\\nCategory3,Value3"
+Example: Monthly snowfall → "Legends,Avg Snowfall (in)\\nJan,9.1\\nFeb,9.4\\nMar,5.2"
+
+For MULTIPLE series (multiple lines/areas/bars):
+Format: "Legends,Cat1,Cat2,Cat3\\nSeries1,Val1,Val2,Val3\\nSeries2,Val1,Val2,Val3"
+Example: Sales vs Costs → "Legends,Q1,Q2,Q3\\nSales,100,120,150\\nCosts,60,70,80"
+
 CHART TYPES & DATA FORMATS:
 
 | Type | componentType | Data Format |
 |------|---------------|-------------|
 | Pie | MF_PieChart2 | "Label1,Label2\\n20,30" |
-| Line | MF_HorizontalLineChart | "Legends,Series\\nJan,100\\nFeb,120" |
-| Vertical Bar | MF_VerticalBarChart | "Legends,Q1,Q2\\nProduct A,45,50" |
+| Line | MF_HorizontalLineChart | Single: "Legends,SeriesName\\nJan,100\\nFeb,120" Multi: "Legends,Jan,Feb\\nSeries1,100,120\\nSeries2,60,70" |
+| Vertical Bar | MF_VerticalBarChart | Single: "Legends,SeriesName\\nCat1,45\\nCat2,50" Multi: "Legends,Q1,Q2\\nProduct A,45,50" |
 | Horizontal Bar | MF_HorizontalBarChart | Same as vertical |
-| Area | MF_AreaChart | Same as line |
+| Area | MF_AreaChart | Same as line. For 6+ time periods, use SINGLE series format |
 | Scatter | MF_ScatterChart | "Label,X,Y\\nPoint1,14,125" |
 | Bubble | MF_BubbleChart | "Labels,x,y,r\\nPlot1,14,125,4" |
-| Radar | MF_RadarChart | "Legends,Axis1,Axis2\\nSeries,8,9" |
+| Radar | MF_RadarChart | "Legends,Axis1,Axis2\\nSeries,8,9" (always multi-series) |
 
 DATA FORMAT RULES:
 - Use CSV format with \\n for newlines
 - First row contains labels/legends
 - Subsequent rows contain data values
-- For multi-series charts, first column is category, other columns are series
+- Labels can include units in parentheses: "Revenue ($M)", "Users (K)", "Speed (mph)" but data values must be pure numbers
+- Do NOT use emojis in chartData labels or values - only use plain text
+- For data over 6+ time periods (months, weeks, days), use SINGLE series format
+- Choose the most appropriate chart type based on data nature
 
 IMPORTANT: Always display the returned URL to the user.`,
         mcpInputSchema: {
@@ -319,8 +332,13 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientPrompt: 'chart',
         clientPromptField: null,
         clientTransform: function(args) {
+            // Normalize literal \n (backslash+n) to actual newline characters.
+            // LLMs may send \\n in JSON which becomes literal \n after parse,
+            // but the chart CSV parser expects real newlines to split rows.
+            var rawData = args.chartData || '';
+            rawData = rawData.replace(/\\n/g, '\n');
             var chartdata = {
-                data: args.chartData || '',
+                data: rawData,
                 title: args.title || ''
             };
             if (args.chartColors && args.chartColors.length > 0) {
@@ -366,7 +384,7 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientPrompt: 'table',
         clientPromptField: null,
         clientTransform: function(args) {
-            return args.data || '';
+            return (args.data || '').replace(/\\n/g, '\n');
         }
     },
     {
@@ -778,7 +796,7 @@ STRUCTURE RULES:
 
 COLUMN PROPERTIES:
 - id: Unique string ID (e.g., "col_1")
-- title: Column name (e.g., "To Do", "In Progress", "Done")
+- title: Column name - MUST be TOPIC-RELEVANT CATEGORIES, NOT workflow stages. Do NOT use generic status columns like "To Do", "In Progress", "Review", "Done". Instead, use columns that categorize content by theme, area, or phase. Example: a marketing board should have "Content Strategy", "Social Media", "Email Marketing", "Paid Ads"
 - color: Use these colors IN ORDER for columns: col_1="#e91e63", col_2="#ff9800", col_3="#9c27b0", col_4="#4caf50", col_5="#2196f3"
 - cards: Array of card objects
 
@@ -789,13 +807,13 @@ CARD PROPERTIES:
 - assignees: Empty array []
 - labels: Empty array []
 - comments: Empty array []
-- dueDate: null or ISO date string
-- priority: "low", "medium", or "high"
+- dueDate: MUST be null UNLESS the user's prompt explicitly mentions dates, deadlines, or due dates. If user does not mention dates, every card's dueDate MUST be null and settings.showDueDate MUST be false
+- priority: "low", "medium", or "high" - distribute realistically: roughly 20% "high", 50% "medium", 30% "low"
 - createdAt: ISO date string
 
 SETTINGS:
 - boardTitle: Meaningful title based on topic (e.g., "Sprint Planning", "Product Launch")
-- showLabels: true, showAssignees: true, showDueDate: true
+- showLabels: true, showAssignees: true, showDueDate: true (set false if no dueDates)
 - cardSize: "normal"
 - backgroundColor: "#ffffff", fontColor: "#172b4d", listColor: "#f4f5f7", listFontColor: "#172b4d"
 
@@ -864,7 +882,7 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_gantt',
-        mcpDescription: `Create a Gantt chart with project phases and tasks on a timeline for project planning, scheduling, and milestone tracking.
+        mcpDescription: `Create a Gantt chart with project phases and tasks for project planning, scheduling, and milestone tracking. Use this for task management with durations, progress, assignees, and grouped phases. For simple chronological event visualization (history, milestones, biography events), use render_timeline instead.
 
 STRUCTURE RULES:
 - Create 3-5 columns representing project phases/categories with meaningful titles
@@ -1471,6 +1489,117 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientComp: null,
         clientDataField: 'generatedtext',
         clientPrompt: 'swimlane',
+        clientPromptField: null,
+        clientTransform: null
+    },
+
+    {
+        mcpToolName: 'render_timeline',
+        mcpDescription: `Create a timeline for visualizing chronological events, milestones, history, evolution, or sequential stages. Use this for simple chronological visualization of events or milestones WITHOUT task management. For project plans with tasks, durations, progress, and assignees, use render_gantt instead.
+
+FIRST, decide whether the topic is best represented with dates or labels:
+
+DATE MODE (labelType: "date"):
+- Use ONLY when you can assign real, accurate modern dates (AD/CE)
+- When user explicitly provides dates in their prompt
+- When topic is well-known modern history with documented dates (e.g., "Apple Inc history", "World War 2 timeline")
+- When prompt contains extracted information with specific dates
+
+LABEL MODE (labelType: "label"):
+- When topic involves stages, steps, phases, processes, or abstract sequences (e.g., "stages of a butterfly", "steps to build a house")
+- When events are conceptual or don't have universally known dates
+- When user describes a process or workflow without specific dates
+- When topic involves ancient history, prehistoric eras, or BC/BCE dates (use labels like "3300 BCE", "252 Million Years Ago")
+- When unsure whether accurate dates exist — prefer labels over inventing dates
+
+EVENT PROPERTIES:
+- id: Unique string ID (e.g., "evt_1", "evt_2")
+- title: Event or stage title
+- description: Detailed description suitable for understanding the event
+- date: ISO date string (real date for date mode, placeholder for label mode)
+- labelValue: Empty string for date mode, meaningful label for label mode (e.g., "Stage 1", "Egg", "3300 BCE")
+- coverType: null
+- coverFileID: null
+
+SETTINGS:
+- boardTitle: Meaningful title based on topic
+- theme: "transparent"
+- layout: "horizontal"
+- labelType: "date" or "label" (based on decision above)
+
+GUIDELINES:
+- Create 5-10 events
+- In date mode: events must have realistic dates sorted chronologically, labelValue should be empty string
+- In label mode: labelValue must be a short meaningful label, date can be a placeholder
+- Each event must have: id, title, description, date, labelValue, coverType, coverFileID
+- coverType and coverFileID should always be null
+- Event IDs should be like: "evt_1", "evt_2", etc.
+- Each event should have a meaningful title and detailed description
+
+IMPORTANT: Always display the returned URL to the user.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                events: {
+                    type: 'array',
+                    description: 'Array of timeline events',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string', description: 'Unique event ID (e.g., "evt_1")' },
+                            title: { type: 'string', description: 'Event title' },
+                            description: { type: 'string', description: 'Detailed event description' },
+                            date: { type: 'string', description: 'ISO date string (real date for date mode, placeholder for label mode)' },
+                            labelValue: { type: 'string', description: 'Empty string for date mode, meaningful label for label mode (e.g., "Stage 1", "3300 BCE")' },
+                            coverType: { type: 'string', description: 'null' },
+                            coverFileID: { type: 'string', description: 'null' }
+                        },
+                        required: ['id', 'title', 'description', 'date', 'labelValue']
+                    }
+                },
+                settings: {
+                    type: 'object',
+                    description: 'Timeline settings',
+                    properties: {
+                        boardTitle: { type: 'string', description: 'Title of the timeline' },
+                        theme: { type: 'string', default: 'transparent' },
+                        layout: { type: 'string', enum: ['horizontal', 'vertical'], default: 'horizontal' },
+                        labelType: { type: 'string', enum: ['date', 'label'], description: '"date" for chronological events with real dates, "label" for stages/phases/abstract sequences' }
+                    }
+                }
+            },
+            required: ['events', 'settings']
+        },
+
+        // Client-side rendering (showResults gdata mapping)
+        clientAitype: 'gencomp',
+        clientComp: 'MF_Timeline_ID',
+        clientDataField: 'generatedtext',
+        clientPrompt: 'timeline',
+        clientPromptField: null,
+        clientTransform: null
+    },
+
+    // ========================================================================
+    // layout_board — Arrange recently created components in bento layout
+    // ========================================================================
+    {
+        mcpToolName: 'layout_board',
+        mcpDescription: 'IMPORTANT: After creating 2 or more visualizations using individual render_* tools, call this tool to arrange them in a professional bento-box grid layout with a titled section wrapper.\n\nWorkflow:\n1. Call render_kanban, render_gantt, render_mindmap etc. one by one\n2. Call layout_board with a title to arrange everything neatly\n\nThis tool takes all recently created components (since the last layout_board call) and arranges them in rows, wrapped in a titled section.\n\nALWAYS call this after creating multiple visualizations.',
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                boardTitle: {
+                    type: 'string',
+                    description: 'Title for the board section (e.g., "Mobile App Launch Plan", "Q2 Marketing Strategy")'
+                }
+            },
+            required: ['boardTitle']
+        },
+        clientAitype: null,
+        clientComp: null,
+        clientDataField: null,
+        clientPrompt: null,
         clientPromptField: null,
         clientTransform: null
     }
