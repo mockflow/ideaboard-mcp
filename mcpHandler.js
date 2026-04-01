@@ -95,9 +95,17 @@ class MCPHandler {
      * Handle tools/list method
      */
     handleToolsList(params) {
-        return {
-            tools: this.customTools || this.getToolDefinitions()
-        };
+        var tools = this.customTools || this.getToolDefinitions();
+        // Inject title property into all tool schemas
+        for (var i = 0; i < tools.length; i++) {
+            if (tools[i].inputSchema && tools[i].inputSchema.properties && !tools[i].inputSchema.properties.title) {
+                tools[i].inputSchema.properties.title = {
+                    type: 'string',
+                    description: 'Short descriptive project title (e.g. "Sales Flowchart", "Sprint Board")'
+                };
+            }
+        }
+        return { tools: tools };
     }
 
     /**
