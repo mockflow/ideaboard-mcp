@@ -126,7 +126,8 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientDataField: 'generatedflow',
         clientPrompt: 'default',
         clientPromptField: 'category',  // dynamic: uses args.category || clientPrompt
-        clientTransform: null  // null = JSON.stringify(args)
+        clientTransform: null,  // null = JSON.stringify(args)
+        recipeOutputKeys: ['flowchart', 'sequencediagram']
     },
     {
         mcpToolName: 'render_mindmap',
@@ -199,7 +200,8 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientDataField: 'generatedmindmap',
         clientPrompt: 'mindmap',
         clientPromptField: null,
-        clientTransform: null
+        clientTransform: null,
+        recipeOutputKeys: ['mindmap', 'brainstorm']
     },
     {
         mcpToolName: 'render_cloudarchitecture',
@@ -266,7 +268,8 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientDataField: 'generatedcloudarchitecture',
         clientPrompt: 'aws',
         clientPromptField: 'diagramType',  // dynamic: uses args.diagramType || clientPrompt
-        clientTransform: null
+        clientTransform: null,
+        recipeOutputKeys: ['cloudarchitecturediagram']
     },
     {
         mcpToolName: 'render_chart',
@@ -349,7 +352,8 @@ IMPORTANT: Always display the returned URL to the user.`,
                 charts: true,
                 dataValue: JSON.stringify(chartdata)
             };
-        }
+        },
+        recipeOutputKeys: ['areachart', 'bubblechart', 'horizontalbarchart', 'horizontallinechart', 'piechart', 'radarchart', 'scatterchart', 'verticalbarchart']
     },
     {
         mcpToolName: 'render_table',
@@ -385,7 +389,8 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientPromptField: null,
         clientTransform: function(args) {
             return (args.data || '').replace(/\\n/g, '\n');
-        }
+        },
+        recipeOutputKeys: ['table']
     },
     {
         mcpToolName: 'render_markdown',
@@ -450,7 +455,8 @@ IMPORTANT: Always display the returned URL to the user.`,
                 dataValue: args.content || '',
                 extraFields: { generatedDoc: args.content || '' }
             };
-        }
+        },
+        recipeOutputKeys: ['markdown']
     },
     {
         mcpToolName: 'render_map',
@@ -516,7 +522,8 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientDataField: 'generatedmaps',
         clientPrompt: 'map',
         clientPromptField: null,
-        clientTransform: null
+        clientTransform: null,
+        recipeOutputKeys: ['maps']
     },
     {
         mcpToolName: 'render_spreadsheet',
@@ -580,7 +587,8 @@ IMPORTANT: Always display the returned URL to the user.`,
                 formatting: args.formatting ? JSON.parse(args.formatting) : {}
             };
             return JSON.stringify(spreadsheetData);
-        }
+        },
+        recipeOutputKeys: ['spreadsheet']
     },
     {
         mcpToolName: 'render_whiteboard',
@@ -678,7 +686,8 @@ IMPORTANT: Always display the returned URL to the user.`,
                 dataValue: s,
                 extraDataFields: { isCompressed: true, generatedui: s }
             };
-        }
+        },
+        recipeOutputKeys: ['whiteboard', 'moodboard']
     },
     {
         mcpToolName: 'render_customerjourney',
@@ -780,7 +789,8 @@ IMPORTANT: Items object keys MUST match stage IDs. Always display the returned U
         clientDataField: 'generatedjourney',
         clientPrompt: 'customerjourney',
         clientPromptField: null,
-        clientTransform: null
+        clientTransform: null,
+        recipeOutputKeys: ['customerjourney']
     },
     {
         mcpToolName: 'render_kanban',
@@ -878,7 +888,8 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientDataField: 'generatedtext',
         clientPrompt: 'kanban',
         clientPromptField: null,
-        clientTransform: null
+        clientTransform: null,
+        recipeOutputKeys: ['kanban']
     },
     {
         mcpToolName: 'render_gantt',
@@ -981,7 +992,8 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientDataField: 'generatedtext',
         clientPrompt: 'gantt',
         clientPromptField: null,
-        clientTransform: null
+        clientTransform: null,
+        recipeOutputKeys: ['ganttchart']
     },
     {
         mcpToolName: 'render_calendar',
@@ -1071,7 +1083,8 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientDataField: 'generatedtext',
         clientPrompt: 'calendar',
         clientPromptField: null,
-        clientTransform: null
+        clientTransform: null,
+        recipeOutputKeys: ['calendar']
     },
     {
         mcpToolName: 'render_storyboard',
@@ -1221,7 +1234,8 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientDataField: 'generatedtext',
         clientPrompt: 'storyboard',
         clientPromptField: null,
-        clientTransform: null
+        clientTransform: null,
+        recipeOutputKeys: ['storyboard']
     },
     {
         mcpToolName: 'render_database',
@@ -1349,7 +1363,8 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientDataField: 'generateddbdiagram',
         clientPrompt: 'database',
         clientPromptField: null,
-        clientTransform: null
+        clientTransform: null,
+        recipeOutputKeys: ['databasediagram']
     },
     {
         mcpToolName: 'render_swimlane',
@@ -1490,7 +1505,8 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientDataField: 'generatedtext',
         clientPrompt: 'swimlane',
         clientPromptField: null,
-        clientTransform: null
+        clientTransform: null,
+        recipeOutputKeys: ['swimlanediagram']
     },
 
     {
@@ -1577,7 +1593,8 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientDataField: 'generatedtext',
         clientPrompt: 'timeline',
         clientPromptField: null,
-        clientTransform: null
+        clientTransform: null,
+        recipeOutputKeys: ['timeline']
     },
 
     // ========================================================================
@@ -1654,6 +1671,20 @@ IDEABOARD_MCP_REGISTRY.mapToolToGdata = function(toolName, args) {
     }
 
     return gdata;
+};
+
+// Helper: build recipeOutputKey → mcpToolName map for Agent Skills export
+IDEABOARD_MCP_REGISTRY.buildRecipeToToolMap = function() {
+    var map = {};
+    for (var i = 0; i < this.length; i++) {
+        var entry = this[i];
+        if (entry.recipeOutputKeys) {
+            for (var j = 0; j < entry.recipeOutputKeys.length; j++) {
+                map[entry.recipeOutputKeys[j]] = entry.mcpToolName;
+            }
+        }
+    }
+    return map;
 };
 
 module.exports = IDEABOARD_MCP_REGISTRY;
