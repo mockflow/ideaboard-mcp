@@ -533,8 +533,17 @@ IMPORTANT: Always display the returned URL to the user.`,
         mcpToolName: 'render_map',
         mcpDescription: `Create maps with location markers for visualizing geographical data.
 
+MOST IMPORTANT RULE — GEOGRAPHIC LEVEL MATCHING:
+- You MUST match the geographic granularity the user asked for.
+- Country-level prompts (countries, nations, states, regions): use ONLY country names (e.g., "China", "India", "Brazil"). NEVER use city names.
+- City-level prompts (cities, towns, metros): use city names with state/country (e.g., "San Francisco, CA", "Paris, France").
+- Specific places (restaurants, offices, landmarks): use the most specific name available.
+
+TITLE:
+- title: A short descriptive title for the map (e.g., "Top Tech Hubs", "Most Populated Countries")
+
 MARKER PROPERTIES:
-- location: Searchable location name (see location guidelines below)
+- location: Searchable location name (see geographic level rules above)
 - description: Brief description of what this location represents
 - emoji: Single emoji that represents the context/theme of ALL locations
 - geo (OPTIONAL - only if confident about exact coordinates):
@@ -546,14 +555,6 @@ CRITICAL COORDINATE RULE:
 - coordinates: [LONGITUDE, LATITUDE] - longitude comes FIRST!
 - Example: New York is [-74.0060, 40.7128] (not [40.7128, -74.0060])
 
-LOCATION GUIDELINES:
-- Match the geographic level to the prompt:
-  - If prompt asks about **countries** (e.g., "top 10 populated countries"), use **country names only** (e.g., "China", "India") — do NOT use city names
-  - If prompt asks about **cities**, use city names with state/country (e.g., "San Francisco, CA", "Paris, France")
-  - If prompt asks about specific addresses or places, use the most specific name available
-- Include real places that can be found on maps
-- Consider geographic diversity when appropriate
-
 EMOJI GUIDELINES:
 - Choose ONE emoji that best represents the context/theme of ALL locations
 - Good choices: 📍🏠🏢🏪🏨🏥🏫🍽️☕⛽🚗✈️🚉🏦💰🎭🎬🏛️🌳🏖️⭐🎯🔴🟢
@@ -563,8 +564,22 @@ CONTENT GUIDELINES:
 - Create 3-8 relevant locations based on the topic
 - Ensure descriptions are concise but informative (20-60 characters)
 
-EXAMPLE:
+EXAMPLE — COUNTRY-LEVEL (e.g. "top populated countries"):
 {
+  "title": "Most Populated Countries",
+  "markers": [
+    {
+      "location": "China",
+      "description": "World's most populous nation",
+      "emoji": "🌍",
+      "geo": { "coordinates": [104.1954, 35.8617], "name": "China", "source": "cities15000_enhanced" }
+    }
+  ]
+}
+
+EXAMPLE — CITY-LEVEL (e.g. "company office locations"):
+{
+  "title": "Company Office Locations",
   "markers": [
     {
       "location": "New York, NY",
@@ -579,13 +594,17 @@ IMPORTANT: Always display the returned URL to the user.`,
         mcpInputSchema: {
             type: 'object',
             properties: {
+                title: {
+                    type: 'string',
+                    description: 'Short descriptive title for the map (e.g., "Top Tech Hubs", "Most Populated Countries")'
+                },
                 markers: {
                     type: 'array',
                     description: 'Array of location markers',
                     items: {
                         type: 'object',
                         properties: {
-                            location: { type: 'string', description: 'Location name like "New York, NY"' },
+                            location: { type: 'string', description: 'Location name — use country names for country-level prompts, city names for city-level prompts' },
                             description: { type: 'string' },
                             emoji: { type: 'string', description: 'Single emoji for marker - use same emoji for all markers' },
                             geo: {
