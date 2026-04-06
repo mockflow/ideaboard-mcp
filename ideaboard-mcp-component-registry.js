@@ -534,28 +534,43 @@ IMPORTANT: Always display the returned URL to the user.`,
         mcpDescription: `Create maps with location markers for visualizing geographical data.
 
 MARKER PROPERTIES:
-- location: Specific location name (city, state/country)
-- description: Brief description of the location
-- emoji: One consistent emoji for ALL markers (e.g., "📍", "🏢", "🏭")
-- geo: { coordinates: [longitude, latitude], name: "Full location name" }
+- location: Searchable location name (see location guidelines below)
+- description: Brief description of what this location represents
+- emoji: Single emoji that represents the context/theme of ALL locations
+- geo (OPTIONAL - only if confident about exact coordinates):
+  - coordinates: [longitude, latitude] - LONGITUDE FIRST!
+  - name: Formatted location name
+  - source: "cities15000_enhanced"
 
 CRITICAL COORDINATE RULE:
 - coordinates: [LONGITUDE, LATITUDE] - longitude comes FIRST!
 - Example: New York is [-74.0060, 40.7128] (not [40.7128, -74.0060])
 
-GUIDELINES:
-- Use specific location names (city, state/country)
-- 3-8 locations typical
-- Use the SAME emoji for all markers in a map
+LOCATION GUIDELINES:
+- Match the geographic level to the prompt:
+  - If prompt asks about **countries** (e.g., "top 10 populated countries"), use **country names only** (e.g., "China", "India") — do NOT use city names
+  - If prompt asks about **cities**, use city names with state/country (e.g., "San Francisco, CA", "Paris, France")
+  - If prompt asks about specific addresses or places, use the most specific name available
+- Include real places that can be found on maps
+- Consider geographic diversity when appropriate
+
+EMOJI GUIDELINES:
+- Choose ONE emoji that best represents the context/theme of ALL locations
+- Good choices: 📍🏠🏢🏪🏨🏥🏫🍽️☕⛽🚗✈️🚉🏦💰🎭🎬🏛️🌳🏖️⭐🎯🔴🟢
+- Examples: For "hotel locations" use 🏨 for all, for "restaurants" use 🍽️ for all, for "offices" use 🏢 for all
+
+CONTENT GUIDELINES:
+- Create 3-8 relevant locations based on the topic
+- Ensure descriptions are concise but informative (20-60 characters)
 
 EXAMPLE:
 {
   "markers": [
     {
       "location": "New York, NY",
-      "description": "Headquarters",
+      "description": "Headquarters and main office",
       "emoji": "🏢",
-      "geo": { "coordinates": [-74.0060, 40.7128], "name": "New York, NY, USA" }
+      "geo": { "coordinates": [-74.0060, 40.7128], "name": "New York, NY, USA", "source": "cities15000_enhanced" }
     }
   ]
 }
@@ -577,7 +592,8 @@ IMPORTANT: Always display the returned URL to the user.`,
                                 type: 'object',
                                 properties: {
                                     coordinates: { type: 'array', items: { type: 'number' }, description: '[longitude, latitude] - LONGITUDE FIRST!' },
-                                    name: { type: 'string' }
+                                    name: { type: 'string' },
+                                    source: { type: 'string', description: 'Always use "cities15000_enhanced"' }
                                 }
                             }
                         }
