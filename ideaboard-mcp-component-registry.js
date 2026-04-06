@@ -204,6 +204,77 @@ IMPORTANT: Always display the returned URL to the user.`,
         recipeOutputKeys: ['mindmap', 'brainstorm']
     },
     {
+        mcpToolName: 'render_knowledgegraph',
+        mcpDescription: `Create a knowledge graph (bubble network) showing how concepts relate to each other, like an Obsidian graph view.
+
+STRUCTURE RULES:
+- "nodes" array: each node has "id" (unique string like "n1"), "label" (text, can include emojis), "weight" (1-8, higher = more important/larger bubble)
+- "edges" array: each edge has "id" (unique string like "e1"), "from" (source node id), "to" (target node id), "label" (relationship description, can be empty)
+- Create 5-12 nodes with meaningful labels
+- Central concepts: weight 5-8, supporting: 3-4, details: 1-2
+- Make the graph connected — avoid isolated nodes
+
+EXAMPLE:
+{
+  "nodes": [
+    { "id": "n1", "label": "🎯 Main Concept", "weight": 6 },
+    { "id": "n2", "label": "💡 Sub Topic A", "weight": 4 },
+    { "id": "n3", "label": "📊 Sub Topic B", "weight": 3 },
+    { "id": "n4", "label": "Detail 1", "weight": 2 }
+  ],
+  "edges": [
+    { "id": "e1", "from": "n1", "to": "n2", "label": "includes" },
+    { "id": "e2", "from": "n1", "to": "n3", "label": "relates to" },
+    { "id": "e3", "from": "n2", "to": "n4", "label": "specifies" }
+  ]
+}
+
+IMPORTANT: Always display the returned URL to the user.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                nodes: {
+                    type: 'array',
+                    description: 'Array of nodes with id, label, and weight (1-8)',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string' },
+                            label: { type: 'string' },
+                            weight: { type: 'integer', minimum: 1, maximum: 8 }
+                        },
+                        required: ['id', 'label', 'weight']
+                    }
+                },
+                edges: {
+                    type: 'array',
+                    description: 'Array of edges with id, from, to, and label',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string' },
+                            from: { type: 'string' },
+                            to: { type: 'string' },
+                            label: { type: 'string' }
+                        },
+                        required: ['id', 'from', 'to']
+                    }
+                }
+            },
+            required: ['nodes', 'edges']
+        },
+
+        clientAitype: 'gencomp',
+        clientComp: 'MF_KnowledgeGraph_ID',
+        clientDataField: 'generatedknowledgegraph',
+        clientPrompt: 'knowledge graph',
+        clientPromptField: null,
+        clientTransform: function(args) {
+            return JSON.stringify({ nodes: args.nodes, edges: args.edges });
+        },
+        recipeOutputKeys: ['knowledgegraph']
+    },
+    {
         mcpToolName: 'render_cloudarchitecture',
         mcpDescription: `Create cloud architecture diagrams for AWS, Azure, GCP, or network infrastructure.
 
