@@ -1793,4 +1793,31 @@ IDEABOARD_MCP_REGISTRY.buildRecipeToToolMap = function() {
     return map;
 };
 
+/**
+ * Sanitize GoJS flowchart data: round coordinates, fix dimensions, remove orphan links.
+ */
+IDEABOARD_MCP_REGISTRY.sanitizeFlowData = function(args) {
+    try {
+        if (!args || !Array.isArray(args.nodeDataArray) || !Array.isArray(args.linkDataArray)) return args;
+
+        var nodeKeys = {};
+        for (var i = 0; i < args.nodeDataArray.length; i++) {
+            var node = args.nodeDataArray[i];
+            if (node.key != null) nodeKeys[node.key] = true;
+
+            if (node.loc && typeof node.loc === 'string') {
+                var parts = node.loc.split(' ');
+                node.loc = (Math.round(parseFloat(parts[0])) || 0) + ' ' + (Math.round(parseFloat(parts[1])) || 0);
+            }
+            if (node.width) node.width = Math.round(parseFloat(node.width)) || 140;
+            if (node.height) node.height = Math.round(parseFloat(node.height)) || 60;
+        }
+
+        args.linkDataArray = args.linkDataArray.filter(function(link) {
+            return link && nodeKeys[link.from] && nodeKeys[link.to];
+        });
+    } catch (e) {}
+    return args;
+};
+
 module.exports = IDEABOARD_MCP_REGISTRY;

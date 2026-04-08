@@ -207,6 +207,17 @@ curl -X POST http://localhost:21193/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
+## Rate Limits
+
+Only visualization tool calls (e.g. `render_flowchart`, `render_mindmap`) are counted. Protocol messages (`initialize`, `tools/list`, `ping`) are unlimited.
+
+| Plan | Limit |
+|------|-------|
+| Basic | 10 tool calls / 30 minutes |
+| Paid | 30 tool calls / 30 minutes |
+
+Limits are enforced server-side per authenticated user. Every response includes `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset` headers.
+
 ## Troubleshooting
 
 ### "No credentials found"
