@@ -1,6 +1,6 @@
 {
   "name": "@mockflow/ideaboard-mcp",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Local MCP server for MockFlow IdeaBoard - enables Claude Code, Cursor, VS Code Copilot and other IDE clients to create visualizations",
   "main": "lib/server.js",
   "bin": {
