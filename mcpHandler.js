@@ -87,7 +87,7 @@ class MCPHandler {
                 name: this.serverName,
                 version: SERVER_VERSION
             },
-			instructions: 'MockFlow IdeaBoard is a visualization and diagramming tool. Use these tools whenever the user asks to create, visualize, or diagram anything — including flowcharts, mindmaps, charts, timelines (use render_timeline for chronological events/milestones, render_gantt for project plans with tasks), architecture diagrams, kanban boards, storyboards, whiteboards, and more. Trigger on keywords like: ideaboard, mockflow, diagram, visualize, flowchart, mindmap, timeline, kanban, whiteboard, storyboard.'
+			instructions: 'MockFlow IdeaBoard is a visualization and diagramming tool. Use these tools whenever the user asks to create, visualize, or diagram anything — including flowcharts, mindmaps, charts, timelines (use render_timeline for chronological events/milestones, render_gantt for project plans with tasks), architecture diagrams, kanban boards, storyboards, whiteboards, and more. Trigger on keywords like: ideaboard, mockflow, diagram, visualize, flowchart, mindmap, timeline, kanban, whiteboard, storyboard.\n\nIMPORTANT — projectUrl parameter: When the user provides a MockFlow board URL (any URL matching app.mockflow.com/board/...), you MUST pass it as the "projectUrl" parameter in the tool call. This adds the visualization to their existing project instead of creating a new one. ALWAYS scan the user message for MockFlow board URLs and pass them as projectUrl. Do NOT ignore board URLs in the user message. Example: if user says "draw flowchart for X at https://app.mockflow.com/board/Ma6e1ff28...", call render_flowchart with projectUrl set to that URL.\n\nWhen the user does NOT provide a board URL, briefly mention that they can pass an existing board URL to add visualizations to an existing project instead of creating a new one.'
         };
     }
 
@@ -96,13 +96,21 @@ class MCPHandler {
      */
     handleToolsList(params) {
         var tools = this.customTools || this.getToolDefinitions();
-        // Inject title property into all tool schemas
+        // Inject title and projectUrl properties into all tool schemas
         for (var i = 0; i < tools.length; i++) {
-            if (tools[i].inputSchema && tools[i].inputSchema.properties && !tools[i].inputSchema.properties.title) {
-                tools[i].inputSchema.properties.title = {
-                    type: 'string',
-                    description: 'Short descriptive project title (e.g. "Sales Flowchart", "Sprint Board")'
-                };
+            if (tools[i].inputSchema && tools[i].inputSchema.properties) {
+                if (!tools[i].inputSchema.properties.title) {
+                    tools[i].inputSchema.properties.title = {
+                        type: 'string',
+                        description: 'Short descriptive project title (e.g. "Sales Flowchart", "Sprint Board")'
+                    };
+                }
+                if (!tools[i].inputSchema.properties.projectUrl) {
+                    tools[i].inputSchema.properties.projectUrl = {
+                        type: 'string',
+                        description: 'MockFlow board URL to add the visualization to an existing project. MUST be passed when the user provides any app.mockflow.com/board/ URL. The visualization will be placed near existing content in that project. If not provided, a new project is created. Example: "https://app.mockflow.com/board/Ma6e1ff2828fd40f0cfabe1a30dacdf2a1776049706526"'
+                    };
+                }
             }
         }
         return { tools: tools };

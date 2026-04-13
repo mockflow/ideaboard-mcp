@@ -214,7 +214,7 @@ Only visualization tool calls (e.g. `render_flowchart`, `render_mindmap`) are co
 | Plan | Limit |
 |------|-------|
 | Basic | 10 tool calls / 30 minutes |
-| Paid | 30 tool calls / 30 minutes |
+| Paid | 30 tool calls / minute |
 
 Limits are enforced server-side per authenticated user. Every response includes `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset` headers.
 
