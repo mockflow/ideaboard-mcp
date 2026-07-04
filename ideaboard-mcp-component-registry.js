@@ -530,8 +530,62 @@ IMPORTANT: Always display the returned URL to the user.`,
         recipeOutputKeys: ['markdown']
     },
     {
+        mcpToolName: 'render_codeblock',
+        mcpDescription: `Create a syntax-highlighted code block from a snippet of source code.
+
+USE THIS FOR: functions, classes, scripts, algorithms, SQL queries, regex, config files, or any "write the code for..." / "show me a function" request. NOT for prose documents (use render_markdown).
+
+RULES:
+- code: the raw source code. Preserve newlines and indentation exactly.
+- language: the programming language in lowercase (e.g. "javascript", "python", "java", "sql", "bash", "json", "typescript", "go"). Drives syntax highlighting.
+- title: a short title for the code block's title bar (e.g. "Bubble Sort", "Fetch Users Query").
+
+IMPORTANT: Always display the returned URL to the user.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                code: {
+                    type: 'string',
+                    description: 'Raw source code. Preserve newlines and indentation exactly.'
+                },
+                language: {
+                    type: 'string',
+                    description: 'Programming language, lowercase (e.g. "javascript", "python", "sql", "bash")'
+                },
+                title: {
+                    type: 'string',
+                    description: 'Short title for the code block title bar (e.g. "Bubble Sort")'
+                }
+            },
+            required: ['code']
+        },
+
+        // Client-side rendering (showResults gdata mapping). MF_CodeBlock_ID.sendGenText reads
+        // the code + language + title from the TOP level of gentext (like render_markdown), so
+        // surface them via extraFields (not extraDataFields).
+        clientAitype: 'gencomp',
+        clientComp: 'MF_CodeBlock_ID',
+        clientDataField: 'generatedDoc',
+        clientPrompt: 'code',
+        clientPromptField: null,
+        clientTransform: function(args) {
+            return {
+                dataValue: args.code || '',
+                extraFields: {
+                    generatedDoc: args.code || '',
+                    codeLanguage: args.language || 'plaintext',
+                    codeTitle: args.title || 'Code'
+                }
+            };
+        },
+        recipeOutputKeys: ['codeblock']
+    },
+    {
         mcpToolName: 'render_map',
-        mcpDescription: `Create maps with location markers for visualizing geographical data.
+        mcpDescription: `Create maps with location markers (pins) for plotting SPECIFIC INDIVIDUAL PLACES on a real-world map.
+
+USE THIS FOR: discrete points you could drop a pin on — addresses, business/office/store locations, venues, landmarks, tourist attractions, travel/route stops.
+DO NOT USE THIS FOR ranking, comparing, or shading whole countries/states/continents/regions by a value or category — that is a choropleth: use render_mapregions instead (e.g. "population by country", "US states by income", "top countries by X", "EU members", "driving side by country").
 
 MOST IMPORTANT RULE — GEOGRAPHIC LEVEL MATCHING:
 - You MUST match the geographic granularity the user asked for.
@@ -546,10 +600,9 @@ MARKER PROPERTIES:
 - location: Searchable location name (see geographic level rules above)
 - description: Brief description of what this location represents
 - emoji: Single emoji that represents the context/theme of ALL locations
-- geo (OPTIONAL - only if confident about exact coordinates):
+- geo (OPTIONAL fallback - only for well-known places; the server geocoder resolves the name):
   - coordinates: [longitude, latitude] - LONGITUDE FIRST!
   - name: Formatted location name
-  - source: "cities15000_enhanced"
 
 CRITICAL COORDINATE RULE:
 - coordinates: [LONGITUDE, LATITUDE] - longitude comes FIRST!
@@ -572,7 +625,7 @@ EXAMPLE — COUNTRY-LEVEL (e.g. "top populated countries"):
       "location": "China",
       "description": "World's most populous nation",
       "emoji": "🌍",
-      "geo": { "coordinates": [104.1954, 35.8617], "name": "China", "source": "cities15000_enhanced" }
+      "geo": { "coordinates": [104.1954, 35.8617], "name": "China" }
     }
   ]
 }
@@ -585,7 +638,7 @@ EXAMPLE — CITY-LEVEL (e.g. "company office locations"):
       "location": "New York, NY",
       "description": "Headquarters and main office",
       "emoji": "🏢",
-      "geo": { "coordinates": [-74.0060, 40.7128], "name": "New York, NY, USA", "source": "cities15000_enhanced" }
+      "geo": { "coordinates": [-74.0060, 40.7128], "name": "New York, NY, USA" }
     }
   ]
 }
@@ -611,8 +664,7 @@ IMPORTANT: Always display the returned URL to the user.`,
                                 type: 'object',
                                 properties: {
                                     coordinates: { type: 'array', items: { type: 'number' }, description: '[longitude, latitude] - LONGITUDE FIRST!' },
-                                    name: { type: 'string' },
-                                    source: { type: 'string', description: 'Always use "cities15000_enhanced"' }
+                                    name: { type: 'string' }
                                 }
                             }
                         }
@@ -630,6 +682,97 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientPromptField: null,
         clientTransform: null,
         recipeOutputKeys: ['maps']
+    },
+    {
+        mcpToolName: 'render_mapregions',
+        mcpDescription: `Create a CHOROPLETH map — a real-world map where whole geographic AREAS (countries, states, provinces, continents, world regions) are FILLED with color to encode a value or category.
+
+USE THIS FOR any ranking, comparison, or data-by-area across places: "population by country", "US states by income", "top countries by X", "EU member states", "US states by time zone", "driving side by country", heatmaps by country/state.
+DO NOT USE THIS to drop pins on individual places (addresses, offices, venues) — use render_map for that.
+
+PICK ONE GEOGRAPHIC LEVEL and use it for every region:
+- "continent": whole continents
+- "region": UN sub-regions / macro-regions (e.g. "Western Europe", "Southern Asia", "Caribbean")
+- "country": whole countries
+- "state": states / provinces within one country
+
+COLOR MODES:
+- "gradient" (value maps: one quantity per region — population, GDP, temperature): set ONE "paletteColor" scheme and give every region a numeric "value". Do NOT set per-region "color". Named schemes: "Blues", "Greens", "Reds", "Oranges", "Purples", "Greys", "YlOrRd", "YlGnBu", "Viridis", "RdBu". Match hue to meaning (Greens=growth/nature, Blues/YlGnBu=water/cold, Reds/YlOrRd=heat/intensity, RdBu=above/below, Viridis=general default).
+- "categorical" (discrete groups): give each category ONE consistent "color"; OMIT paletteColor.
+
+REGION PROPERTIES:
+- name: region's common English name (for "state" level, the plain state name e.g. "California", "Bavaria")
+- iso: STRONGLY PREFERRED for exact matching — country level ISO 3166-1 alpha-3 ("FRA", "BRA", "JPN"); state level ISO 3166-2 ("US-CA", "IN-MH"); omit for continent/region levels
+- color: hex "#RRGGBB" fill (categorical maps only)
+- value: number (gradient maps only)
+- category: discrete group label (categorical maps)
+- description: OPTIONAL short note shown on click (<= 80 chars)
+
+LEGEND: array of { label, color } that explains the fills. Labels must match the colors exactly.
+
+IMPORTANT: Always display the returned URL to the user.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                title: {
+                    type: 'string',
+                    description: 'Short descriptive title (e.g. "Population by Country", "US States by Time Zone")'
+                },
+                level: {
+                    type: 'string',
+                    enum: ['continent', 'region', 'country', 'state'],
+                    description: 'The single geographic level used for every region'
+                },
+                colorMode: {
+                    type: 'string',
+                    enum: ['categorical', 'gradient'],
+                    description: '"gradient" for a value scale (use paletteColor + value), "categorical" for discrete groups (use per-region color)'
+                },
+                paletteColor: {
+                    type: 'string',
+                    description: 'For gradient/value maps only: a named color scheme (Blues, Greens, Reds, Oranges, Purples, Greys, YlOrRd, YlGnBu, Viridis, RdBu) or a hex color. Omit for categorical maps.'
+                },
+                regions: {
+                    type: 'array',
+                    description: 'Array of region objects to color',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: { type: 'string', description: "Region's common English name" },
+                            iso: { type: 'string', description: 'ISO code — alpha-3 for country level, ISO 3166-2 for state level; omit for continent/region levels' },
+                            color: { type: 'string', description: 'Hex fill color "#RRGGBB" (categorical maps)' },
+                            value: { type: 'number', description: 'Underlying metric (gradient maps)' },
+                            category: { type: 'string', description: 'Discrete group label (categorical maps)' },
+                            description: { type: 'string', description: 'Optional short note (<= 80 chars)' }
+                        },
+                        required: ['name']
+                    }
+                },
+                legend: {
+                    type: 'array',
+                    description: 'Key explaining the colors',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            label: { type: 'string' },
+                            color: { type: 'string', description: 'Hex "#RRGGBB"' }
+                        }
+                    }
+                }
+            },
+            required: ['regions']
+        },
+
+        // Client-side rendering (showResults gdata mapping). MF_MapRegions_ID.sendGenText reads
+        // JSON.parse(gentext.data.generatedmapregions), so a null transform (which stringifies the
+        // whole args object into that field) is exactly right — same pattern as render_map.
+        clientAitype: 'gencomp',
+        clientComp: 'MF_MapRegions_ID',
+        clientDataField: 'generatedmapregions',
+        clientPrompt: 'mapregions',
+        clientPromptField: null,
+        clientTransform: null,
+        recipeOutputKeys: ['mapregions']
     },
     {
         mcpToolName: 'render_spreadsheet',
@@ -794,6 +937,75 @@ IMPORTANT: Always display the returned URL to the user.`,
             };
         },
         recipeOutputKeys: ['whiteboard', 'moodboard']
+    },
+    {
+        // WireframeLite — IdeaBoard's lightweight UI wireframe frame (MF_WireframeLite_ID).
+        // Mirrors WireframePro's render_wireframe HTML→wireframe workflow, but is a SEPARATE
+        // IdeaBoard tool end-to-end: its own tool name (render_wireframelite → the Java
+        // /mcp/render_wireframelite endpoint), its own client aitype (genwireframelite) and its
+        // own frame component (MF_WireframeLite_ID). It deliberately does NOT reuse WireframePro's
+        // render_wireframe endpoint or genui path. Like WireframePro's render_wireframe, the
+        // HTML→paintObjects conversion is a custom client flow, so mapToolToGdata returns null
+        // (signalled by clientIsHtmlConversion) rather than the generic mapping.
+        mcpToolName: 'render_wireframelite',
+        mcpDescription: `Convert HTML to an editable UI wireframe inside a MockFlow IdeaBoard wireframe frame.
+
+Provide a complete HTML document with inline CSS styles. The HTML is rendered and automatically converted to editable wireframe components on the board.
+
+IMPORTANT RULES:
+- Use inline styles (style attribute) for all styling — no external stylesheets
+- Use standard HTML elements: div, h1-h6, p, input, button, select, textarea, img, ul, li, table, form
+- Include realistic placeholder text and content
+- Set explicit widths and heights where possible
+- Use a clean, structured layout with proper nesting
+- The HTML should represent a single page/screen design
+- Wrap everything in a container div with an explicit width (e.g. 1280px for web, 390px for mobile) and a background color
+
+EXAMPLE:
+<html><body style="margin:0;padding:0">
+<div style="width:1280px;background:#fff;font-family:Arial,sans-serif">
+  <header style="background:#2563eb;color:#fff;padding:20px 40px;display:flex;justify-content:space-between;align-items:center">
+    <h1 style="margin:0;font-size:24px">AppName</h1>
+    <nav><a style="color:#fff;margin-left:20px;text-decoration:none">Home</a></nav>
+  </header>
+  <main style="padding:40px">
+    <h2>Welcome</h2>
+    <p>Some content here</p>
+  </main>
+</div>
+</body></html>
+
+FIDELITY: Use "low" for a clean lo-fi outline wireframe (default), or "hi" for a polished high-fidelity mockup.
+
+IMPORTANT: Always display the returned URL to the user.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                html: {
+                    type: 'string',
+                    description: 'Complete HTML document with inline CSS to convert to an editable wireframe'
+                },
+                fidelity: {
+                    type: 'string',
+                    enum: ['low', 'hi'],
+                    description: 'Wireframe fidelity. "low" = lo-fi outline (default), "hi" = polished high-fidelity mockup.'
+                }
+            },
+            required: ['html']
+        },
+
+        // Special: HTML → paintObjects flow handled by the consuming client (like WireframePro's
+        // render_wireframe), not the generic mapToolToGdata. clientIsHtmlConversion makes
+        // mapToolToGdata return null to signal "use custom HTML conversion". Uses IdeaBoard's own
+        // genwireframelite aitype + MF_WireframeLite_ID frame — never WireframePro's genui.
+        clientAitype: 'genwireframelite',
+        clientComp: 'MF_WireframeLite_ID',
+        clientDataField: null,
+        clientPrompt: 'wireframe from HTML',
+        clientPromptField: null,
+        clientIsHtmlConversion: true,
+        clientTransform: null,
+        recipeOutputKeys: ['wireframe']
     },
     {
         mcpToolName: 'render_customerjourney',
@@ -1747,6 +1959,10 @@ IDEABOARD_MCP_REGISTRY.mapToolToGdata = function(toolName, args) {
     }
     if (!entry) return null;
 
+    // HTML-conversion tools (e.g. render_wireframelite) are handled by a custom HTML→paintObjects
+    // flow in the consuming client, not this generic mapping. Return null to signal that.
+    if (entry.clientIsHtmlConversion) return null;
+
     var gdata = { aitype: entry.clientAitype, data: {} };
     if (entry.clientComp) gdata.comp = entry.clientComp;
 
@@ -1795,6 +2011,7 @@ IDEABOARD_MCP_REGISTRY.buildRecipeToToolMap = function() {
 
 /**
  * Sanitize GoJS flowchart data: round coordinates, fix dimensions, remove orphan links.
+ * Same logic as genflow.js sanitizeGoJSData.
  */
 IDEABOARD_MCP_REGISTRY.sanitizeFlowData = function(args) {
     try {
@@ -1807,8 +2024,11 @@ IDEABOARD_MCP_REGISTRY.sanitizeFlowData = function(args) {
 
             if (node.loc && typeof node.loc === 'string') {
                 var parts = node.loc.split(' ');
-                node.loc = (Math.round(parseFloat(parts[0])) || 0) + ' ' + (Math.round(parseFloat(parts[1])) || 0);
+                var x = Math.round(parseFloat(parts[0])) || 0;
+                var y = Math.round(parseFloat(parts[1])) || 0;
+                node.loc = x + ' ' + y;
             }
+
             if (node.width) node.width = Math.round(parseFloat(node.width)) || 140;
             if (node.height) node.height = Math.round(parseFloat(node.height)) || 60;
         }
@@ -1816,7 +2036,9 @@ IDEABOARD_MCP_REGISTRY.sanitizeFlowData = function(args) {
         args.linkDataArray = args.linkDataArray.filter(function(link) {
             return link && nodeKeys[link.from] && nodeKeys[link.to];
         });
-    } catch (e) {}
+    } catch (e) {
+        // Sanitization failed — return original data unchanged
+    }
     return args;
 };
 
