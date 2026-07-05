@@ -1,17 +1,39 @@
 /**
  * IdeaBoard MCP Component Registry
- * Single source of truth for all IdeaBoard MCP tool definitions and client-side rendering mappings.
  *
- * To add a new component:
- *   1. Add an entry to this array
- *   2. Copy this file to: MockFlow-Desktop2/ideaboard-mcp/, ideaboard-mcp-local/
- *   3. Done — all MCP servers auto-derive tool definitions and client mapping
+ * DERIVED FILE — this is NOT the source of truth for component capabilities.
+ * The source of truth is ai-component-registry.js (the AI_REGISTRY array) at
+ *   MockFlow-WireframePro/nodejs-server/editor/aitools/ai-component-registry.js
+ * This file restates each component FOR MCP: tool definitions, client-side rendering
+ * mappings, and MCP tool descriptions/input schemas.
+ *
+ * Author HERE (MCP-specific): mcpToolName, mcpInputSchema, clientAitype / clientComp /
+ *   clientTransform / clientIsHtmlConversion (rendering mappings), and the MCP-framed
+ *   mcpDescription.
+ * DERIVE FROM the source: each tool's capabilities, scope, and sibling-tool exclusions —
+ *   these MUST match what ai-component-registry.js declares for that component.
+ *
+ * To DERIVE an update after the source changed (the normal flow):
+ *   1. Find the changed source entry — correlate by recipe key:
+ *      source `recipeOutputKey`  ↔  this file's `recipeOutputKeys`.
+ *   2. Update this entry's mcpDescription/mcpInputSchema to reflect the source's new
+ *      scope/exclusions. ADAPT to MCP framing (what it does, when to use, when NOT to use
+ *      vs sibling tools, input guidance, examples). Do NOT paste the source's
+ *      detectionPromptDescription verbatim.
+ *   3. Keep this file byte-identical across all copies — copy it to:
+ *        MockFlow-Desktop2/ideaboard-mcp/
+ *        ideaboard-mcp/                              (standalone CLI package)
+ *        MockFlow-WireframePro/nodejs-server/ideaboard-mcp/
+ *   4. `node --check` each copy. All MCP servers auto-derive tool definitions from this array.
+ *
+ * To ADD a new component: add it to the SOURCE (ai-component-registry.js) first, then add
+ * the derived MCP entry here and propagate as above.
  */
 
 var IDEABOARD_MCP_REGISTRY = [
     {
         mcpToolName: 'render_flowchart',
-        mcpDescription: `Create diagrams including: Flowcharts, Sketchy Diagrams, 3D Isometric Diagrams, Bio/Medical Diagrams, Circuit Diagrams, P&ID Diagrams, UML Diagrams, Sketchy UML, Cloud Isometric Diagrams, Web Layout Diagrams, and Mobile Layout Diagrams.
+        mcpDescription: `Create diagrams including: Flowcharts, Sketchy Diagrams, 3D Isometric Diagrams, Bio/Medical Diagrams, Circuit Diagrams, P&ID Diagrams, UML Diagrams, Sketchy UML, Cloud Isometric Diagrams, Web Layout Diagrams, and Mobile Layout Diagrams. NOT for cross-functional/swimlane (lane-per-role) diagrams — use render_swimlane; NOT for AWS/Azure/GCP cloud infrastructure — use render_cloudarchitecture; NOT for database/ER schemas — use render_database.
 
 CATEGORY (CRITICAL) - You MUST include a "category" field:
 - "default": General flowcharts, business processes, software flows. Uses standard shapes - NO matchKey needed
@@ -276,7 +298,7 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_cloudarchitecture',
-        mcpDescription: `Create cloud architecture diagrams for AWS, Azure, GCP, or network infrastructure.
+        mcpDescription: `Create cloud/software system architecture diagrams for AWS, Azure, GCP, Kubernetes, or network infrastructure. ONLY for technical software/cloud/network diagrams — NOT for physical buildings, construction, or real-world/building architecture. For a hand-drawn "cloud isometric diagram" use render_flowchart (cloud-isometric category) instead.
 
 CRITICAL FORMAT RULES:
 - diagramType: "aws", "azure", "gcloud", or "cisco"
@@ -428,7 +450,7 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_table',
-        mcpDescription: `Create data tables and grids from CSV-formatted data.
+        mcpDescription: `Create data tables and grids from CSV-formatted data — structured rows/columns for display (rosters, comparison tables, inventories, directories). NOT for spreadsheets needing formulas or calculations (use render_spreadsheet); NOT for strategy/brainstorming matrices like RACI, Eisenhower, BCG, Ansoff, priority or segmentation matrices (use render_whiteboard).
 
 FORMAT RULES:
 - First row = headers (column names)
@@ -586,6 +608,7 @@ IMPORTANT: Always display the returned URL to the user.`,
 
 USE THIS FOR: discrete points you could drop a pin on — addresses, business/office/store locations, venues, landmarks, tourist attractions, travel/route stops.
 DO NOT USE THIS FOR ranking, comparing, or shading whole countries/states/continents/regions by a value or category — that is a choropleth: use render_mapregions instead (e.g. "population by country", "US states by income", "top countries by X", "EU members", "driving side by country").
+Each location is geocoded to real Earth coordinates, so DO NOT use this for fictional, imaginary, or invented places (fantasy game worlds, novel settings, made-up countries/cities) — use an image or whiteboard for those.
 
 MOST IMPORTANT RULE — GEOGRAPHIC LEVEL MATCHING:
 - You MUST match the geographic granularity the user asked for.
@@ -688,7 +711,7 @@ IMPORTANT: Always display the returned URL to the user.`,
         mcpDescription: `Create a CHOROPLETH map — a real-world map where whole geographic AREAS (countries, states, provinces, continents, world regions) are FILLED with color to encode a value or category.
 
 USE THIS FOR any ranking, comparison, or data-by-area across places: "population by country", "US states by income", "top countries by X", "EU member states", "US states by time zone", "driving side by country", heatmaps by country/state.
-DO NOT USE THIS to drop pins on individual places (addresses, offices, venues) — use render_map for that.
+DO NOT USE THIS to drop pins on individual places (addresses, offices, venues) — use render_map for that. It colors real Earth boundaries, so DO NOT use it for fictional or invented regions.
 
 PICK ONE GEOGRAPHIC LEVEL and use it for every region:
 - "continent": whole continents
@@ -841,7 +864,7 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_whiteboard',
-        mcpDescription: `Create whiteboards with sticky notes and sections for freeform brainstorming.
+        mcpDescription: `Create whiteboards for freeform brainstorming AND structured strategy work: sticky notes and sections, named frameworks (SWOT, SCAMPER, Six Thinking Hats, Fishbone, empathy maps, Lean/Business Model Canvas, retrospectives, priority/RACI/Eisenhower matrices), and mood / inspiration boards (style boards, aesthetic collections, color-palette references). NOT for kanban-style status columns (use render_kanban) or UI/screen mockups and wireframes (use render_wireframelite).
 
 STRUCTURE: { "components": { "c": [...] } }
 
@@ -952,16 +975,21 @@ IMPORTANT: Always display the returned URL to the user.`,
 
 Provide a complete HTML document with inline CSS styles. The HTML is rendered and automatically converted to editable wireframe components on the board.
 
+SCOPE — works for EITHER a full screen OR a single section/widget:
+- Full page/screen: a whole app screen, dashboard, or landing page. Use a page-width container (e.g. 1280px web, 390px mobile) with a background color.
+- Section or widget only: a single UI piece on its own — e.g. a login card, navbar, pricing table, signup form, sidebar, product card, stats row, data table, hero section, or button group. Size the container to the widget's NATURAL size (e.g. a 380px card, a 1280x64 navbar, a 320px sidebar). Do NOT wrap a partial widget in a full-viewport centering flexbox or a full-page background — keep just the widget so the frame hugs its bounds.
+
 IMPORTANT RULES:
 - Use inline styles (style attribute) for all styling — no external stylesheets
 - Use standard HTML elements: div, h1-h6, p, input, button, select, textarea, img, ul, li, table, form
 - Include realistic placeholder text and content
 - Set explicit widths and heights where possible
 - Use a clean, structured layout with proper nesting
-- The HTML should represent a single page/screen design
-- Wrap everything in a container div with an explicit width (e.g. 1280px for web, 390px for mobile) and a background color
+- Give the outermost container an explicit width and a background color
 
-EXAMPLE:
+CHARTS: To include a chart, use a real Chart.js v3 <canvas> — add <script src="https://d20hhedk3h2l88.cloudfront.net/genai/chart.min.js"></script> in <head>, give the <canvas> data-chart-component="true", set maintainAspectRatio:false, and initialize it in a <script> at the end of <body>. It becomes a real, editable MockFlow chart with its data and colors.
+
+EXAMPLE (full screen):
 <html><body style="margin:0;padding:0">
 <div style="width:1280px;background:#fff;font-family:Arial,sans-serif">
   <header style="background:#2563eb;color:#fff;padding:20px 40px;display:flex;justify-content:space-between;align-items:center">
@@ -975,6 +1003,17 @@ EXAMPLE:
 </div>
 </body></html>
 
+EXAMPLE (single widget — a login card only):
+<html><body style="margin:0;padding:0">
+<div style="width:380px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:28px;font-family:Arial,sans-serif">
+  <h2 style="margin:0 0 6px;font-size:20px">Sign in</h2>
+  <p style="margin:0 0 20px;font-size:13px;color:#64748b">Welcome back</p>
+  <input placeholder="Email" style="width:100%;height:40px;border:1px solid #cbd5e1;border-radius:8px;margin-bottom:12px">
+  <input placeholder="Password" style="width:100%;height:40px;border:1px solid #cbd5e1;border-radius:8px;margin-bottom:16px">
+  <button style="width:100%;height:42px;background:#2563eb;color:#fff;border:none;border-radius:8px">Sign in</button>
+</div>
+</body></html>
+
 FIDELITY: Use "low" for a clean lo-fi outline wireframe (default), or "hi" for a polished high-fidelity mockup.
 
 IMPORTANT: Always display the returned URL to the user.`,
@@ -983,7 +1022,7 @@ IMPORTANT: Always display the returned URL to the user.`,
             properties: {
                 html: {
                     type: 'string',
-                    description: 'Complete HTML document with inline CSS to convert to an editable wireframe'
+                    description: 'Complete HTML document with inline CSS to convert to an editable wireframe. Can be a full page/screen OR a single section/widget (login card, navbar, pricing table, etc.) sized to its natural width.'
                 },
                 fidelity: {
                     type: 'string',
