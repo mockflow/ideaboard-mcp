@@ -1047,6 +1047,66 @@ IMPORTANT: Always display the returned URL to the user.`,
         recipeOutputKeys: ['wireframe']
     },
     {
+        // PrototypeLite — a runnable, clickable interactive prototype placed on an IdeaBoard as an
+        // MF_PrototypeLite_ID component (like render_wireframelite places a wireframe frame). The MCP
+        // agent GENERATES the prototype HTML and passes it as `html`; the backend only uploads it PRIVATE
+        // to S3 and stores a pointer — NO server-side generation, NO AI credits. Like wireframelite this
+        // is an HTML-input tool the backend processes into a stored action, so mapToolToGdata returns
+        // null (clientIsHtmlConversion) and the client draws it via the 'prototypelite' action transform.
+        mcpToolName: 'render_prototypelite',
+        mcpDescription: `Turn a self-contained interactive prototype YOU generate into an editable MockFlow IdeaBoard component, and get back the board URL.
+
+You generate the complete prototype as a single self-contained HTML document and pass it as "html". MockFlow stores it and places it on a new board as a runnable, clickable prototype — no AI credits are used, so YOU make every design decision here: device, screens, layout and styling. The output must match what the in-app AI generator would produce.
+
+USE THIS WHEN the user wants a working, clickable, multi-screen prototype or interactive demo they can navigate. For a single static wireframe frame, use render_wireframelite instead.
+
+DEVICE & VIEWPORT (decide this FIRST — it drives the entire layout):
+- Set deviceType to match what the user asked for: a mobile/phone app → "mobile", a tablet/iPad app → "tablet", a web/desktop app → "desktop". Honor an explicit device word in the request (e.g. "CRM mobile app" → "mobile"). Default "mobile".
+- Design EVERY screen for that device's viewport width and lay it out to suit it: mobile ~390px wide (single column, bottom tab bar, stacked cards), tablet ~820px, desktop ~1280px (multi-column, sidebars). NEVER build a desktop-width layout for a mobile app.
+- Render each screen edge-to-edge filling the viewport (html, body, and your root at width/height 100%). Do NOT draw a device bezel, status bar, notch, or home indicator — the board already frames the prototype in the chosen device, so any bezel you draw just gets clipped.
+
+HTML CONTRACT (required — the built-in player relies on it):
+- One self-contained index.html with inline CSS/JS. No external stylesheets, fonts, or scripts, and no network/backend calls; embed images as data: URIs or use absolute https image URLs.
+- A prototype is a navigable FLOW that ALWAYS spans MULTIPLE distinct screens. NEVER emit one long single-page / scrolling document and NEVER collapse the flow into a single screen — the player shows exactly ONE screen at a time, so a single-section prototype just renders as one endless page. Wire the screens together with navigation instead.
+- Put EVERY screen in the document as a SEPARATE top-level element with a unique id, e.g. <section data-screen="login">…</section>, <section data-screen="home">…</section>. Mark the entry screen with the attribute data-screen-start. Build each screen fully with its own real content — never an empty or placeholder screen.
+- Navigate between screens by adding data-nav="targetScreenId" to a clickable element (the EXACT id of a screen you defined). Use data-nav="back" for a back control. A built-in runtime shows/hides the right screen and keeps history — write NO screen-switching code.
+- Do NOT hide screens yourself (no display:none, no [hidden], no .active toggling, and no CSS that hides [data-screen]). The runtime controls which single screen is visible; if you also hide them, navigating lands on a blank page.
+- Only genuine navigators carry data-nav (primary CTAs, nav/tab items, list rows/cards that open a detail, back/close). In-screen controls (form fields, toggles, dropdowns) act within the current screen via your own inline JS. Never use window.alert / confirm / prompt — render every message, confirmation and input in-page.
+
+INPUT:
+- html (required): the complete self-contained prototype HTML following the contract above.
+- deviceType (optional): "mobile" (default), "tablet", or "desktop" — MUST match the device you designed the screens for (see DEVICE & VIEWPORT).
+
+IMPORTANT: Always display the returned board URL to the user.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                html: {
+                    type: 'string',
+                    description: 'Complete self-contained interactive prototype as a single HTML document. Multiple screens as <section data-screen="id"> elements (mark the entry with data-screen-start); navigation via data-nav="targetId" (and data-nav="back"). Inline CSS/JS only; no external network or backend calls.'
+                },
+                deviceType: {
+                    type: 'string',
+                    enum: ['mobile', 'tablet', 'desktop'],
+                    description: 'Device frame the prototype is presented in AND the viewport you MUST design every screen for. Match the user\'s stated device (a "mobile app" → "mobile"). Defaults to "mobile". Design widths: mobile ~390px, tablet ~820px, desktop ~1280px.'
+                }
+            },
+            required: ['html']
+        },
+
+        // HTML-input tool: the backend uploads the agent HTML to S3 and stores a pointer as the board
+        // action; the client draws the MF_PrototypeLite_ID from it via the 'prototypelite' action
+        // transform (aitools.js), NOT the generic gdata mapping — so mapToolToGdata returns null.
+        clientIsHtmlConversion: true,
+        clientAitype: 'genprototypelite',
+        clientComp: 'MF_PrototypeLite_ID',
+        clientDataField: null,
+        clientPrompt: 'prototype from HTML',
+        clientPromptField: null,
+        clientTransform: null,
+        recipeOutputKeys: ['prototype']
+    },
+    {
         mcpToolName: 'render_customerjourney',
         mcpDescription: `Create customer journey maps with stages, activities, and satisfaction metrics.
 
@@ -1998,8 +2058,9 @@ IDEABOARD_MCP_REGISTRY.mapToolToGdata = function(toolName, args) {
     }
     if (!entry) return null;
 
-    // HTML-conversion tools (e.g. render_wireframelite) are handled by a custom HTML→paintObjects
-    // flow in the consuming client, not this generic mapping. Return null to signal that.
+    // HTML-conversion tools (render_wireframelite, render_prototypelite) are processed server-side into
+    // a stored action and drawn by a custom client action-transform, not this generic mapping. Return
+    // null to signal that.
     if (entry.clientIsHtmlConversion) return null;
 
     var gdata = { aitype: entry.clientAitype, data: {} };
