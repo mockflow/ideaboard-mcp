@@ -976,8 +976,13 @@ IMPORTANT: Always display the returned URL to the user.`,
 Provide a complete HTML document with inline CSS styles. The HTML is rendered and automatically converted to editable wireframe components on the board.
 
 SCOPE — works for EITHER a full screen OR a single section/widget:
-- Full page/screen: a whole app screen, dashboard, or landing page. Use a page-width container (e.g. 1280px web, 390px mobile) with a background color.
+- Full page/screen: a whole app screen, dashboard, or landing page. Use a page-width container (see DEVICE & VIEWPORT below) with a background color.
 - Section or widget only: a single UI piece on its own — e.g. a login card, navbar, pricing table, signup form, sidebar, product card, stats row, data table, hero section, or button group. Size the container to the widget's NATURAL size (e.g. a 380px card, a 1280x64 navbar, a 320px sidebar). Do NOT wrap a partial widget in a full-viewport centering flexbox or a full-page background — keep just the widget so the frame hugs its bounds.
+
+DEVICE & VIEWPORT — for a full screen, size and lay out the wireframe for the device the request implies:
+- Honor an explicit device word in the request: a mobile/phone app screen → mobile width, a tablet/iPad screen → tablet width, a web/desktop screen → desktop width. "CRM mobile screen" MUST be a mobile-width layout, NOT desktop.
+- Give the outermost container that device's viewport width and lay it out to suit it: mobile ~390px (single column, stacked cards, bottom tab bar), tablet ~820px, desktop ~1280px (multi-column, sidebars). NEVER build a desktop-width layout for a mobile screen.
+- When no device is implied (a generic web app, website, dashboard, or admin panel), default to desktop web (~1280px).
 
 IMPORTANT RULES:
 - Use inline styles (style attribute) for all styling — no external stylesheets
@@ -1411,6 +1416,194 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientPromptField: null,
         clientTransform: null,
         recipeOutputKeys: ['ganttchart']
+    },
+    {
+        mcpToolName: 'render_datasimulator',
+        // The spec format + expression language below is kept in sync with the `specReference`
+        // block in nodejs-server/editor/aitools/gendatasimulator.js — edit both together.
+        mcpDescription: `Create a live, parameterized what-if simulation: a runnable model the user drives with sliders and play/scrub controls, every output recomputing as they move. Use this for business models (growth, churn, revenue, unit economics), funnels with conversion rates, forecasts and projections, capacity/queue models, epidemic/population dynamics, financial models (compound interest, runway), sensitivity/what-if analysis, and data infographics (metric cards, charts, gauges and funnels composed around one topic). Use this INSTEAD of a chart or table whenever the point is to explore how outcomes CHANGE as the inputs change over time.
+
+You are building a MODEL, not a picture and not an answer. Define parameters (the user's decision levers), state (the evolving variables), rules (how state updates each step) and derived values, then choose views to display them. Never bake a guessed outcome into the data — outcomes must emerge from the rules running step by step. The client runtime runs the model deterministically.
+
+The simulation spec JSON format:
+{
+  "title": "Short title of the simulation",
+  "description": "One short sentence describing what it models",
+  "kind": "system-dynamics",
+  "seed": 42,
+  "time": { "steps": 24, "unit": "month" },
+  "layout": { "columns": 4, "controls": "right" },
+  "parameters": [
+    { "id": "churn", "label": "Monthly churn", "control": "slider", "min": 0, "max": 0.2, "step": 0.005, "value": 0.05, "format": "percent" },
+    { "id": "arpu", "label": "ARPU", "control": "number", "min": 0, "value": 40, "format": "currency" }
+  ],
+  "state": [
+    { "id": "customers", "label": "Customers", "init": 1000, "format": "integer" }
+  ],
+  "rules": [
+    { "target": "customers", "expr": "customers + signups - customers * churn" }
+  ],
+  "derived": [
+    { "id": "mrr", "label": "MRR", "expr": "customers * arpu", "format": "currency" }
+  ],
+  "views": [
+    { "type": "text", "variant": "heading", "content": "Revenue" },
+    { "type": "line", "series": ["mrr", { "id": "signups_total", "as": "bar" }], "title": "Growth over time", "span": 4, "tall": true },
+    { "type": "metric", "value": "mrr", "title": "MRR", "span": 1 },
+    { "type": "sparkline", "value": "customers", "title": "Customers", "span": 1 },
+    { "type": "gauge", "value": "churn_pct", "min": 0, "max": 20, "thresholds": [5, 10], "title": "Churn", "span": 1 },
+    { "type": "progress", "value": "customers", "target": 10000, "title": "Goal", "span": 1 },
+    { "type": "funnel", "stages": [ { "label": "Visitors", "value": "visitors" } ], "title": "Funnel", "span": 2 },
+    { "type": "table", "columns": ["customers", "mrr"], "title": "Detail", "span": 2 },
+    { "type": "sensitivity", "parameter": "churn", "metric": "mrr", "samples": 15, "title": "MRR sensitivity to churn", "span": 2 }
+  ]
+}
+
+Spec semantics:
+- "time.steps" is how many steps the model runs (integer, 1 to 1000). "time.unit" names one step (e.g. "month", "day", "week", "year", "step").
+- "layout" is YOURS to design: "columns" (2 to 6) sets the grid density, "controls" docks the what-if panel "right", "left" or "bottom". Each view places itself with "span" (1..columns grid columns wide) and optional "tall": true. Views flow into the grid in order.
+- "parameters" are the user's what-if levers, shown as live controls. "control" is one of: "slider", "knob", "number", "select", "toggle", "stepper", "segmented". "select" and "segmented" need "options": [{"label":"...","value":number}] (segmented renders them as a button row, best for 2-4 short choices). "stepper" is a minus/plus click control, best for small integer counts. "toggle" holds 0 or 1. Always give slider/knob/stepper a sensible "min", "max" and "step" bracketing the default "value". Optional "group" clusters related controls under a heading. Every parameter must be read by at least one rule or derived expression (or drawn as a reference value in a view) so adjusting it visibly changes the run — never emit a parameter nothing reads.
+- "state" variables hold the model's evolving numbers; "init" is the starting value at step 0 — a number, or an expression string of parameters (e.g. "init": "starting_customers") when the starting value should be a user lever.
+- "rules" run once per step IN ORDER: each rule assigns "expr" to "target" (a state id). A rule sees the values already updated by earlier rules this step, and last step's values for everything else. Rules run at t = 1..steps — t is never 0 inside a rule; step 0 values come only from "init".
+- "derived" values are recomputed from state and parameters after the rules each step. Use them for anything displayable that follows from the current values (revenue, percentages, ratios). A derived value cannot accumulate across steps — any running total must be a state variable with a rule that adds to it.
+- "format" (on parameters, state, derived) is one of: "number", "integer", "percent" (value is a 0-1 fraction), "currency".
+- Expressions may use: parameter/state/derived ids, t (current step number), steps, numbers, + - * / % ^, comparisons, && || !, ternary cond ? a : b, and these functions: abs, min, max, round, floor, ceil, sqrt, pow, exp, log, log10, sin, cos, tan, clamp(v,lo,hi), lerp(a,b,frac), pulse(t,start,width), ramp(t,start), rand(), randn(). Nothing else — no strings, no assignments, no other functions.
+- rand()/randn() are seeded from "seed" so runs replay identically. Only use them when the scenario is genuinely stochastic. When the user wants the range, spread or risk of outcomes rather than one path, make the model stochastic and answer with a "distribution" view.
+- Every rand()/randn() call returns a fresh number, so repeating the same expression yields different values each time. Draw each stochastic quantity ONCE per step — assign it to a state variable with a rule, and reference that state everywhere the quantity is needed.
+- Every expression must yield a finite number at every step INCLUDING step 0, where derived values are evaluated with t = 0 and only the "init" values set — guard any division that could hit zero there.
+- Every state and derived variable should feed at least one view (directly or through another expression); do not define values nothing displays.
+- Ids must be unique across parameters, state and derived, must not be any of: t, step, steps, rand, randn, pi, e, true, false — and every rule's "target" must be a state id.
+
+View types (each entry lists its own fields). Anywhere a view takes an id it may be a state, derived OR parameter id (parameters render as constant values — e.g. a capacity reference line on a chart):
+- "line" / "area" / "bar": timeline chart of one or more series. Entries in "series" are ids, or { "id", "as": "line"|"bar" } to mix marks in one combo chart. Optional "stacked": true.
+- "metric": big-number tile for one "value" id (shows change vs start / vs pinned scenario).
+- "sparkline": big number plus a mini trend line for one "value" id.
+- "progress": one "value" id against a "target" (a number or another id).
+- "gauge": dial for one "value" id with "min"/"max" and optional "thresholds" [greenUpTo, amberUpTo], all four in the value's own units. Thresholds color LOW values green and high values red — right for metrics where low is good (churn, cost, risk); for a higher-is-better metric omit "thresholds" or choose a different view.
+- "pie" / "doughnut": composition of the listed "series" ids at the current step (parts of a whole only).
+- "compare": bars comparing the listed "series" ids at the current step; optional "horizontal": true.
+- "radar": profile of 3-8 "series" ids at the current step (only when the ids share a comparable scale).
+- "scatter": trajectory of the model through two series, "x" vs "y", one point per step.
+- "table": per-step values of the "columns" ids.
+- "funnel": stage bars from "stages" [{label, value}] with conversion percentages.
+- "sensitivity": final value of "metric" as "parameter" sweeps its min..max range ("samples" points).
+- "distribution": histogram of "metric"'s final value across many seeded runs ("runs", default 50) — ONLY meaningful when rules use rand()/randn().
+- "mapregions": animated choropleth on a real-world map — "regions": [{"region": "Maharashtra", "value": id-or-number}, ...] with optional "level" ("country" | "state", default country) and "ramp" ("Blues" | "Greens" | "Reds" | "Oranges" | "Purples" | "YlOrRd" | "Viridis"). Each region's fill shade tracks its bound series at the shown step, so playing/scrubbing animates the geography. Region names must be REAL countries/states resolvable on a map — never fictional places.
+- "mappoints": bubble map — "points": [{"label": "Mumbai", "lat": 19.07, "lng": 72.88, "value": id-or-number}, ...]; bubble size tracks the bound series at the shown step. Use real coordinates you are confident of; only for real-world places.
+- Use the geo views ONLY when the model is genuinely about real places (regional sales, city demand, epidemic spread across states); bind each region/point to its OWN state or derived series so the map moves over time.
+- "text": static copy; "variant": "heading" makes a full-width section break, "note" a short explanatory card ("content" holds the text).
+
+IMPORTANT: Always display the returned URL to the user.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                title: { type: 'string', description: 'Short title of the simulation' },
+                description: { type: 'string', description: 'One short sentence describing what it models' },
+                seed: { type: 'number', description: 'Random seed so stochastic runs replay identically (default 42)' },
+                time: {
+                    type: 'object',
+                    description: 'Simulation horizon',
+                    properties: {
+                        steps: { type: 'number', description: 'Number of steps to run (1-1000)' },
+                        unit: { type: 'string', description: 'Name of one step, e.g. month, day, week, year' }
+                    }
+                },
+                layout: {
+                    type: 'object',
+                    description: 'Dashboard grid layout',
+                    properties: {
+                        columns: { type: 'number', description: 'Grid density, 2-6' },
+                        controls: { type: 'string', enum: ['right', 'left', 'bottom'], description: 'Where the what-if control panel docks' }
+                    }
+                },
+                parameters: {
+                    type: 'array',
+                    description: "The user's what-if levers, rendered as live controls. Each must be read by at least one rule, derived expression or view.",
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string', description: 'Unique id, referenced by expressions' },
+                            label: { type: 'string', description: 'Human label shown on the control' },
+                            control: { type: 'string', enum: ['slider', 'knob', 'number', 'select', 'toggle', 'stepper', 'segmented'] },
+                            min: { type: 'number' },
+                            max: { type: 'number' },
+                            step: { type: 'number' },
+                            value: { type: 'number', description: 'Default value' },
+                            format: { type: 'string', enum: ['number', 'integer', 'percent', 'currency'] },
+                            options: { type: 'array', description: 'For select/segmented: [{ label, value }]', items: { type: 'object' } },
+                            group: { type: 'string', description: 'Optional heading clustering related controls' }
+                        },
+                        required: ['id', 'label', 'control', 'value']
+                    }
+                },
+                state: {
+                    type: 'array',
+                    description: 'The evolving model variables. init is the step-0 value (a number, or a parameter-id expression string).',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string' },
+                            label: { type: 'string' },
+                            init: { description: 'Starting value: a number or an expression string' },
+                            format: { type: 'string', enum: ['number', 'integer', 'percent', 'currency'] }
+                        },
+                        required: ['id', 'init']
+                    }
+                },
+                rules: {
+                    type: 'array',
+                    description: 'Run once per step in order; each assigns expr to a state id (target). t is 1..steps.',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            target: { type: 'string', description: 'A state id' },
+                            expr: { type: 'string', description: 'Expression evaluated each step' }
+                        },
+                        required: ['target', 'expr']
+                    }
+                },
+                derived: {
+                    type: 'array',
+                    description: 'Recomputed from state and parameters after the rules each step (cannot accumulate across steps).',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string' },
+                            label: { type: 'string' },
+                            expr: { type: 'string' },
+                            format: { type: 'string', enum: ['number', 'integer', 'percent', 'currency'] }
+                        },
+                        required: ['id', 'expr']
+                    }
+                },
+                views: {
+                    type: 'array',
+                    description: 'Dashboard tiles. See the description for every view type and its fields. Each view has a "type" and optional "span" (1..columns) and "tall".',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            type: { type: 'string', enum: ['line', 'area', 'bar', 'metric', 'sparkline', 'progress', 'gauge', 'pie', 'doughnut', 'compare', 'radar', 'scatter', 'table', 'funnel', 'sensitivity', 'distribution', 'mapregions', 'mappoints', 'text'] },
+                            title: { type: 'string' },
+                            span: { type: 'number', description: '1..columns grid width' },
+                            tall: { type: 'boolean' }
+                        },
+                        required: ['type']
+                    }
+                }
+            },
+            required: ['state', 'views']
+        },
+
+        // Client-side rendering (showResults gdata mapping). Generic gencomp placement: the client
+        // loads MF_DataSimulator_ID and calls sendGenText, which reads generatedtext as the bare
+        // spec JSON (validates spec.state && spec.views) and wraps it as { spec, settings }.
+        clientAitype: 'gencomp',
+        clientComp: 'MF_DataSimulator_ID',
+        clientDataField: 'generatedtext',
+        clientPrompt: 'datasimulator',
+        clientPromptField: null,
+        clientTransform: null,
+        recipeOutputKeys: ['simulation']
     },
     {
         mcpToolName: 'render_calendar',
