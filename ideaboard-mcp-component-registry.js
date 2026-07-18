@@ -608,6 +608,7 @@ IMPORTANT: Always display the returned URL to the user.`,
 
 USE THIS FOR: discrete points you could drop a pin on — addresses, business/office/store locations, venues, landmarks, tourist attractions, travel/route stops.
 DO NOT USE THIS FOR ranking, comparing, or shading whole countries/states/continents/regions by a value or category — that is a choropleth: use render_mapregions instead (e.g. "population by country", "US states by income", "top countries by X", "EU members", "driving side by country").
+DO NOT USE THIS to DRAW a plan over the map — zones, coverage areas, route arrows, territory sketches: use render_strategymap for that.
 Each location is geocoded to real Earth coordinates, so DO NOT use this for fictional, imaginary, or invented places (fantasy game worlds, novel settings, made-up countries/cities) — use an image or whiteboard for those.
 
 MOST IMPORTANT RULE — GEOGRAPHIC LEVEL MATCHING:
@@ -711,7 +712,7 @@ IMPORTANT: Always display the returned URL to the user.`,
         mcpDescription: `Create a CHOROPLETH map — a real-world map where whole geographic AREAS (countries, states, provinces, continents, world regions) are FILLED with color to encode a value or category.
 
 USE THIS FOR any ranking, comparison, or data-by-area across places: "population by country", "US states by income", "top countries by X", "EU member states", "US states by time zone", "driving side by country", heatmaps by country/state.
-DO NOT USE THIS to drop pins on individual places (addresses, offices, venues) — use render_map for that. It colors real Earth boundaries, so DO NOT use it for fictional or invented regions.
+DO NOT USE THIS to drop pins on individual places (addresses, offices, venues) — use render_map for that. It fills only OFFICIAL admin boundaries — freeform drawn territories, zones, coverage areas or route plans are render_strategymap instead. It colors real Earth boundaries, so DO NOT use it for fictional or invented regions.
 
 PICK ONE GEOGRAPHIC LEVEL and use it for every region:
 - "continent": whole continents
@@ -796,6 +797,83 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientPromptField: null,
         clientTransform: null,
         recipeOutputKeys: ['mapregions']
+    },
+    {
+        mcpToolName: 'render_strategymap',
+        mcpDescription: `Create a STRATEGY MAP — a plan DRAWN ON a real-world map: zones, coverage circles, route arrows, markers and short text notes over real geography.
+
+USE THIS FOR spatial plans: sales territories to carve, delivery/expansion routes, event site plans, evacuation/operations plans, coverage areas, military-style overlays — whenever the subject is a PLAN or ANNOTATION over space.
+DO NOT USE THIS to plot plain point locations (addresses, offices, venues) — use render_map. DO NOT use it to shade whole countries/states by a statistic or category — use render_mapregions. It draws on the real Earth, so DO NOT use it for fictional or invented places.
+
+MOST IMPORTANT RULE — every shape is anchored to REAL Earth coordinates as [longitude, latitude] (LONGITUDE FIRST). Use accurate coordinates for the places the plan refers to.
+
+SHAPE TYPES ("coordinates" shape depends on type):
+- "zone": array of [lng,lat] vertices (3-16) tracing the area's outline; do NOT repeat the first point at the end
+- "circle": single [lng,lat] center; REQUIRES "radiusKm" sized to what it represents (a district is a few km, regional reach can be hundreds)
+- "arrow": array of [lng,lat] points (2-8) from origin to destination; arrowhead drawn at the LAST point; route through sensible intermediate points when the path matters
+- "marker": single [lng,lat] point
+- "text": single [lng,lat] point; "label" is its content
+
+SHAPE PROPERTIES:
+- color: hex "#RRGGBB" — use color to GROUP related shapes: one side/team/phase shares one color, opposing elements get a clearly different one
+- label: OPTIONAL short name (a few words). Label only shapes whose meaning is not obvious — a few well-chosen labels, never one on every shape, never several crowding one small area
+- emoji: for "marker": ONE emoji depicting what the marker actually IS (asset, place, unit, event) — never a generic pin when something more specific exists; same kind = same emoji, different kinds = visibly different
+- dash: OPTIONAL boolean for zones/circles/arrows — true renders the outline dashed; use for planned/proposed/tentative vs confirmed
+
+CONTENT GUIDELINES:
+- Draw the PLAN, not just locations: areas that matter (zones/circles), what moves where (arrows), what sits where (markers). A good map mixes several shape types.
+- Keep it readable: roughly 4-20 shapes. Use "text" notes sparingly and never to repeat a label. The map's name goes in "title" only.
+
+EXAMPLE:
+{
+  "title": "Berlin Delivery Coverage Plan",
+  "shapes": [
+    { "type": "circle", "coordinates": [13.405, 52.52], "radiusKm": 6, "color": "#1c7ce2", "label": "Central coverage" },
+    { "type": "zone", "coordinates": [[13.29,52.54],[13.34,52.57],[13.41,52.56],[13.38,52.51],[13.31,52.50]], "color": "#10b981", "label": "Phase 2 area", "dash": true },
+    { "type": "marker", "coordinates": [13.365, 52.525], "emoji": "🏭", "color": "#f59e0b", "label": "Depot" },
+    { "type": "arrow", "coordinates": [[13.365,52.525],[13.42,52.50],[13.46,52.48]], "color": "#ef4444", "label": "Route east" }
+  ]
+}
+
+IMPORTANT: Always display the returned URL to the user.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                title: {
+                    type: 'string',
+                    description: 'Short descriptive title for the plan (e.g. "West Coast Expansion Plan") — displayed on the map'
+                },
+                shapes: {
+                    type: 'array',
+                    description: 'Array of shapes drawn on the map',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            type: { type: 'string', enum: ['zone', 'circle', 'arrow', 'marker', 'text'], description: 'Shape kind' },
+                            coordinates: { type: 'array', description: 'zone/arrow: array of [lng,lat] points; circle/marker/text: single [lng,lat] — LONGITUDE FIRST' },
+                            radiusKm: { type: 'number', description: 'Circle radius in kilometers (REQUIRED for "circle")' },
+                            color: { type: 'string', description: 'Hex "#RRGGBB"; same color groups shapes of one side/team/phase' },
+                            label: { type: 'string', description: 'Optional short name; label sparingly. For "text" shapes this is the content' },
+                            emoji: { type: 'string', description: 'For "marker": one emoji depicting what the marker IS (not a generic pin)' },
+                            dash: { type: 'boolean', description: 'Dashed outline for planned/proposed/tentative elements' }
+                        },
+                        required: ['type', 'coordinates']
+                    }
+                }
+            },
+            required: ['shapes']
+        },
+
+        // Client-side rendering (showResults gdata mapping). MF_StrategyMap_ID.sendGenText reads
+        // JSON.parse(gentext.data.generatedstrategymap), so a null transform (which stringifies the
+        // whole args object into that field) is exactly right — same pattern as render_map.
+        clientAitype: 'gencomp',
+        clientComp: 'MF_StrategyMap_ID',
+        clientDataField: 'generatedstrategymap',
+        clientPrompt: 'strategymap',
+        clientPromptField: null,
+        clientTransform: null,
+        recipeOutputKeys: ['strategymap']
     },
     {
         mcpToolName: 'render_spreadsheet',
