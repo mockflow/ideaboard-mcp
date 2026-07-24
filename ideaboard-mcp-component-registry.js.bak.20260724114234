@@ -1,15 +1,33 @@
 /**
  * IdeaBoard MCP Component Registry
  *
- * The catalog of MCP tools an AI agent can call to draw on a MockFlow IdeaBoard.
- * Each entry has the tool definition (mcpToolName, mcpInputSchema, mcpDescription)
- * plus the client-side rendering mapping (clientAitype / clientComp / clientTransform /
- * clientIsHtmlConversion) used to turn a tool call into component data.
+ * DERIVED FILE — this is NOT the source of truth for component capabilities.
+ * The source of truth is ai-component-registry.js (the AI_REGISTRY array) at
+ *   MockFlow-WireframePro/nodejs-server/editor/aitools/ai-component-registry.js
+ * This file restates each component FOR MCP: tool definitions, client-side rendering
+ * mappings, and MCP tool descriptions/input schemas.
  *
- * Every MCP server and the bridge build their tool list from this array. It is a
- * derived catalog: each component's capabilities and scope mirror the MockFlow
- * component registry, so keep the two in step when a component's scope changes
- * (correlate entries by recipe key) and run `node --check` after edits.
+ * Author HERE (MCP-specific): mcpToolName, mcpInputSchema, clientAitype / clientComp /
+ *   clientTransform / clientIsHtmlConversion (rendering mappings), and the MCP-framed
+ *   mcpDescription.
+ * DERIVE FROM the source: each tool's capabilities, scope, and sibling-tool exclusions —
+ *   these MUST match what ai-component-registry.js declares for that component.
+ *
+ * To DERIVE an update after the source changed (the normal flow):
+ *   1. Find the changed source entry — correlate by recipe key:
+ *      source `recipeOutputKey`  ↔  this file's `recipeOutputKeys`.
+ *   2. Update this entry's mcpDescription/mcpInputSchema to reflect the source's new
+ *      scope/exclusions. ADAPT to MCP framing (what it does, when to use, when NOT to use
+ *      vs sibling tools, input guidance, examples). Do NOT paste the source's
+ *      detectionPromptDescription verbatim.
+ *   3. Keep this file byte-identical across all copies — copy it to:
+ *        MockFlow-Desktop2/ideaboard-mcp/
+ *        ideaboard-mcp/                              (standalone CLI package)
+ *        MockFlow-WireframePro/nodejs-server/ideaboard-mcp/
+ *   4. `node --check` each copy. All MCP servers auto-derive tool definitions from this array.
+ *
+ * To ADD a new component: add it to the SOURCE (ai-component-registry.js) first, then add
+ * the derived MCP entry here and propagate as above.
  */
 
 var IDEABOARD_MCP_REGISTRY = [
@@ -73,10 +91,6 @@ IMPORTANT: Always display the returned URL to the user.`,
         mcpInputSchema: {
             type: 'object',
             properties: {
-                title: {
-                    type: 'string',
-                    description: 'A short title for the diagram, shown as the frame header (e.g. "User Signup Flow").'
-                },
                 diagramType: {
                     type: 'string',
                     enum: ['flowchart'],
@@ -131,8 +145,6 @@ IMPORTANT: Always display the returned URL to the user.`,
         // Client-side rendering (showResults gdata mapping)
         clientAitype: 'genflow',
         clientComp: null,
-        // Fills an MF_DiagramFrame in place (its sendGenText routes genflow data).
-        fillsComptype: 'MF_DiagramFrame',
         clientDataField: 'generatedflow',
         clientPrompt: 'default',
         clientPromptField: 'category',  // dynamic: uses args.category || clientPrompt
@@ -141,8 +153,6 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_mindmap',
-        // Real-world/current data component: the local agent may web-research first.
-        webResearch: true,
         mcpDescription: `Create a mindmap for brainstorming, topic exploration, and hierarchical idea organization.
 
 STRUCTURE RULES:
@@ -183,7 +193,6 @@ IMPORTANT: Always display the returned URL to the user.`,
                     properties: {
                         id: { type: 'string' },
                         topic: { type: 'string' },
-                        image: { type: 'string', description: 'Optional emoji icon for the node (e.g. "💡", "🎯"). Use sparingly on key nodes.' },
                         root: { type: 'boolean' },
                         children: {
                             type: 'array',
@@ -192,7 +201,6 @@ IMPORTANT: Always display the returned URL to the user.`,
                                 properties: {
                                     id: { type: 'string' },
                                     topic: { type: 'string' },
-                                    image: { type: 'string', description: 'Optional emoji icon for the node (e.g. "💡", "🎯"). Use sparingly on key nodes.' },
                                     direction: { type: 'integer', enum: [0, 1], description: '0=left, 1=right' },
                                     children: {
                                         type: 'array',
@@ -219,8 +227,6 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_knowledgegraph',
-        // Real-world/current data component: the local agent may web-research first.
-        webResearch: true,
         mcpDescription: `Create a knowledge graph (bubble network) showing how concepts relate to each other, like an Obsidian graph view.
 
 STRUCTURE RULES:
@@ -326,10 +332,6 @@ IMPORTANT: Always display the returned URL to the user.`,
         mcpInputSchema: {
             type: 'object',
             properties: {
-                title: {
-                    type: 'string',
-                    description: 'A short title for the diagram, shown as the frame header (e.g. "AWS Web App Architecture").'
-                },
                 diagramType: {
                     type: 'string',
                     enum: ['aws', 'azure', 'gcloud', 'cisco'],
@@ -356,8 +358,6 @@ IMPORTANT: Always display the returned URL to the user.`,
         // Client-side rendering (showResults gdata mapping)
         clientAitype: 'gencloudarchitecture',
         clientComp: null,
-        // Fills an MF_DiagramFrame in place (sendGenText routes cloud-arch data).
-        fillsComptype: 'MF_DiagramFrame',
         clientDataField: 'generatedcloudarchitecture',
         clientPrompt: 'aws',
         clientPromptField: 'diagramType',  // dynamic: uses args.diagramType || clientPrompt
@@ -366,11 +366,6 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_chart',
-        // Plan-picker badge join key (AI_REGISTRY multiBoardType) for tools whose
-        // comptype join misses (pseudo/fills-many comptypes).
-        planUIType: 'charts',
-        // Real-world/current data component: the local agent may web-research first.
-        webResearch: true,
         mcpDescription: `Create charts including pie, bar, line, area, scatter, bubble, and radar charts.
 
 CRITICAL: SINGLE-SERIES vs MULTI-SERIES DATA FORMATS:
@@ -429,9 +424,6 @@ IMPORTANT: Always display the returned URL to the user.`,
         // Client-side rendering (showResults gdata mapping)
         clientAitype: 'gencomp',
         clientComp: null,  // dynamic: uses args.componentType
-        // Fills any of the 8 chart components in place (the agent pins componentType
-        // to the edited component's type; each chart class has a matching sendGenText).
-        fillsComptypes: ['MF_PieChart2', 'MF_HorizontalLineChart', 'MF_VerticalBarChart', 'MF_HorizontalBarChart', 'MF_AreaChart', 'MF_ScatterChart', 'MF_BubbleChart', 'MF_RadarChart'],
         clientDataField: 'generatedcharts',
         clientPrompt: 'chart',
         clientPromptField: null,
@@ -458,8 +450,6 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_table',
-        // Real-world/current data component: the local agent may web-research first.
-        webResearch: true,
         mcpDescription: `Create data tables and grids from CSV-formatted data — structured rows/columns for display (rosters, comparison tables, inventories, directories). NOT for spreadsheets needing formulas or calculations (use render_spreadsheet); NOT for strategy/brainstorming matrices like RACI, Eisenhower, BCG, Ansoff, priority or segmentation matrices (use render_whiteboard).
 
 FORMAT RULES:
@@ -469,8 +459,8 @@ FORMAT RULES:
 - Wrap values containing commas in double quotes
 - 5-15 data rows typical
 
-EXAMPLE (note the placeholder values - do not invent real-looking names or contact details):
-"Name,Email,Phone\\nGuest 1,person1@example.com,555-0100\\nGuest 2,person2@example.com,555-0101"
+EXAMPLE:
+"Name,Email,Phone\\nJohn Doe,john@example.com,555-1234\\nJane Smith,jane@example.com,555-5678"
 
 IMPORTANT: Always display the returned URL to the user.`,
         mcpInputSchema: {
@@ -478,7 +468,7 @@ IMPORTANT: Always display the returned URL to the user.`,
             properties: {
                 data: {
                     type: 'string',
-                    description: 'CSV-formatted data. First row is headers, subsequent rows are data. Use placeholder values for details the user did not provide. Example: "Name,Email,Phone\\nGuest 1,person1@example.com,555-0100"'
+                    description: 'CSV-formatted data. First row is headers, subsequent rows are data. Example: "Name,Email,Phone\\nJohn,john@email.com,555-1234"'
                 }
             },
             required: ['data']
@@ -601,17 +591,11 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientPrompt: 'code',
         clientPromptField: null,
         clientTransform: function(args) {
-            // Resolve the language NAME to the {lang,ext} JSON string the CodeBlock
-            // iframe JSON.parses. A raw name like "python" would make its JSON.parse throw.
-            var LANG_MAP = {"javascript":'{"lang": "javascript", "ext": "js"}',"js":'{"lang": "javascript", "ext": "js"}',"node":'{"lang": "javascript", "ext": "js"}',"nodejs":'{"lang": "javascript", "ext": "js"}',"python":'{"lang": "python", "ext": "py"}',"py":'{"lang": "python", "ext": "py"}',"java":'{"lang": "clike", "ext": "java"}',"c++":'{"lang": "clike", "ext": "cpp"}',"cpp":'{"lang": "clike", "ext": "cpp"}',"c":'{"lang": "clike", "ext": "c"}',"c#":'{"lang": "clike", "ext": "cs"}',"csharp":'{"lang": "clike", "ext": "cs"}',"cs":'{"lang": "clike", "ext": "cs"}',"php":'{"lang": "php", "ext": "php"}',"ruby":'{"lang": "ruby", "ext": "rb"}',"rb":'{"lang": "ruby", "ext": "rb"}',"go":'{"lang": "go", "ext": "go"}',"golang":'{"lang": "go", "ext": "go"}',"rust":'{"lang": "rust", "ext": "rs"}',"rs":'{"lang": "rust", "ext": "rs"}',"swift":'{"lang": "swift", "ext": "swift"}',"kotlin":'{"lang": "clike", "ext": "kt"}',"kt":'{"lang": "clike", "ext": "kt"}',"typescript":'{"lang": "javascript", "ext": "ts"}',"ts":'{"lang": "javascript", "ext": "ts"}',"jsx":'{"lang": "jsx", "ext": "jsx"}',"tsx":'{"lang": "jsx", "ext": "jsx"}',"vue":'{"lang": "vue", "ext": "vue"}',"html":'{"lang": "xml", "ext": "html"}',"css":'{"lang": "css", "ext": "css"}',"scss":'{"lang": "sass", "ext": "scss"}',"sass":'{"lang": "sass", "ext": "scss"}',"less":'{"lang": "css", "ext": "less"}',"sql":'{"lang": "sql", "ext": "sql"}',"mysql":'{"lang": "sql", "ext": "sql"}',"postgresql":'{"lang": "sql", "ext": "sql"}',"postgres":'{"lang": "sql", "ext": "sql"}',"shell":'{"lang": "shell", "ext": "sh"}',"bash":'{"lang": "shell", "ext": "sh"}',"sh":'{"lang": "shell", "ext": "sh"}',"zsh":'{"lang": "shell", "ext": "sh"}',"powershell":'{"lang": "powershell", "ext": "ps1"}',"ps1":'{"lang": "powershell", "ext": "ps1"}',"dockerfile":'{"lang": "dockerfile", "ext": "dockerfile"}',"docker":'{"lang": "dockerfile", "ext": "dockerfile"}',"yaml":'{"lang": "yaml", "ext": "yml"}',"yml":'{"lang": "yaml", "ext": "yml"}',"toml":'{"lang": "toml", "ext": "toml"}',"json":'{"lang": "javascript", "ext": "json"}',"xml":'{"lang": "xml", "ext": "xml"}',"markdown":'{"lang": "markdown", "ext": "md"}',"md":'{"lang": "markdown", "ext": "md"}',"latex":'{"lang": "stex", "ext": "tex"}',"tex":'{"lang": "stex", "ext": "tex"}',"r":'{"lang": "r", "ext": "r"}',"matlab":'{"lang": "octave", "ext": "m"}',"octave":'{"lang": "octave", "ext": "m"}',"scala":'{"lang": "clike", "ext": "scala"}',"clojure":'{"lang": "clojure", "ext": "clj"}',"clj":'{"lang": "clojure", "ext": "clj"}',"haskell":'{"lang": "haskell", "ext": "hs"}',"hs":'{"lang": "haskell", "ext": "hs"}',"erlang":'{"lang": "erlang", "ext": "erl"}',"elixir":'{"lang": "erlang", "ext": "ex"}',"ex":'{"lang": "erlang", "ext": "ex"}',"dart":'{"lang": "dart", "ext": "dart"}',"lua":'{"lang": "lua", "ext": "lua"}',"perl":'{"lang": "perl", "ext": "pl"}',"pl":'{"lang": "perl", "ext": "pl"}',"pascal":'{"lang": "pascal", "ext": "pas"}',"fortran":'{"lang": "fortran", "ext": "f90"}',"cobol":'{"lang": "cobol", "ext": "cob"}',"groovy":'{"lang": "groovy", "ext": "groovy"}',"coffeescript":'{"lang": "coffeescript", "ext": "coffee"}',"coffee":'{"lang": "coffeescript", "ext": "coffee"}',"stylus":'{"lang": "stylus", "ext": "styl"}',"pug":'{"lang": "pug", "ext": "pug"}',"haml":'{"lang": "haml", "ext": "haml"}',"handlebars":'{"lang": "handlebars", "ext": "hbs"}',"twig":'{"lang": "twig", "ext": "twig"}',"nginx":'{"lang": "nginx", "ext": "conf"}',"ini":'{"lang": "properties", "ext": "ini"}',"properties":'{"lang": "properties", "ext": "properties"}',"diff":'{"lang": "diff", "ext": "diff"}',"git":'{"lang": "shell", "ext": "gitignore"}',"plaintext":'{"lang": "javascript", "ext": "js"}',"text":'{"lang": "javascript", "ext": "js"}'};
-            var key = ('' + (args.language || '')).toLowerCase().trim();
-            if (key.charAt(0) === '.') key = key.substring(1);
-            var codeLanguage = LANG_MAP[key] || '{"lang": "javascript", "ext": "js"}';
             return {
                 dataValue: args.code || '',
                 extraFields: {
                     generatedDoc: args.code || '',
-                    codeLanguage: codeLanguage,
+                    codeLanguage: args.language || 'plaintext',
                     codeTitle: args.title || 'Code'
                 }
             };
@@ -620,8 +604,6 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_map',
-        // Real-world/current data component: the local agent may web-research first.
-        webResearch: true,
         mcpDescription: `Create maps with location markers (pins) for plotting SPECIFIC INDIVIDUAL PLACES on a real-world map.
 
 USE THIS FOR: discrete points you could drop a pin on — addresses, business/office/store locations, venues, landmarks, tourist attractions, travel/route stops.
@@ -727,8 +709,6 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_mapregions',
-        // Real-world/current data component: the local agent may web-research first.
-        webResearch: true,
         mcpDescription: `Create a CHOROPLETH map — a real-world map where whole geographic AREAS (countries, states, provinces, continents, world regions) are FILLED with color to encode a value or category.
 
 USE THIS FOR any ranking, comparison, or data-by-area across places: "population by country", "US states by income", "top countries by X", "EU member states", "US states by time zone", "driving side by country", heatmaps by country/state.
@@ -820,8 +800,6 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_strategymap',
-        // Real-world/current data component: the local agent may web-research first.
-        webResearch: true,
         mcpDescription: `Create a STRATEGY MAP — a plan DRAWN ON a real-world map: zones, coverage circles, route arrows, markers and short text notes over real geography.
 
 USE THIS FOR spatial plans: sales territories to carve, delivery/expansion routes, event site plans, evacuation/operations plans, coverage areas, military-style overlays — whenever the subject is a PLAN or ANNOTATION over space.
@@ -899,8 +877,6 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_spreadsheet',
-        // Real-world/current data component: the local agent may web-research first.
-        webResearch: true,
         mcpDescription: `Create spreadsheets with cell data, formulas, and formatting.
 
 STRUCTURE:
@@ -915,9 +891,9 @@ FORMULA RULES:
 - Supported: SUM, AVERAGE, MAX, MIN, COUNT, IF, ROUND
 - Row 1 = headers (make bold in formatting)
 
-EXAMPLE (the labels and figures below are PLACEHOLDERS - keep values generic unless the user gave you real ones):
+EXAMPLE:
 {
-  "cellData": "{\\"A1\\":\\"Product\\",\\"B1\\":\\"Price\\",\\"C1\\":\\"Qty\\",\\"D1\\":\\"Total\\",\\"A2\\":\\"Item 1\\",\\"B2\\":\\"25\\",\\"C2\\":\\"10\\",\\"D2\\":\\"=B2*C2\\",\\"A3\\":\\"Total\\",\\"D3\\":\\"=SUM(D2:D2)\\"}",
+  "cellData": "{\\"A1\\":\\"Product\\",\\"B1\\":\\"Price\\",\\"C1\\":\\"Qty\\",\\"D1\\":\\"Total\\",\\"A2\\":\\"Widget A\\",\\"B2\\":\\"25\\",\\"C2\\":\\"10\\",\\"D2\\":\\"=B2*C2\\",\\"A3\\":\\"Total\\",\\"D3\\":\\"=SUM(D2:D2)\\"}",
   "formulas": "{\\"D2\\":\\"=B2*C2\\",\\"D3\\":\\"=SUM(D2:D2)\\"}",
   "rows": 3,
   "cols": 4,
@@ -941,14 +917,6 @@ IMPORTANT: Always display the returned URL to the user.`,
                 formatting: {
                     type: 'string',
                     description: 'JSON string for cell formatting. Use {"A1":{"fontWeight":"bold"}} for headers.'
-                },
-                cellFormats: {
-                    type: 'string',
-                    description: 'JSON string mapping cells to a display format: "number", "currency", "percentage", or "date". e.g. {"B2":"number","C2":"currency"}. Use for numeric/money/percent/date columns.'
-                },
-                cellFormatOptions: {
-                    type: 'string',
-                    description: 'JSON string of per-cell format options: {"B2":{"decimals":2},"C2":{"currency":"USD","decimals":2}}. Pairs with cellFormats.'
                 }
             },
             required: ['cellData', 'rows', 'cols']
@@ -961,15 +929,12 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientPrompt: 'spreadsheet',
         clientPromptField: null,
         clientTransform: function(args) {
-            function pj(s, d) { try { return s ? JSON.parse(s) : d; } catch (e) { return d; } }
             var spreadsheetData = {
-                data: pj(args.cellData, {}),
-                formulas: pj(args.formulas, {}),
+                data: args.cellData ? JSON.parse(args.cellData) : {},
+                formulas: args.formulas ? JSON.parse(args.formulas) : {},
                 rows: args.rows || 10,
                 cols: args.cols || 5,
-                formatting: pj(args.formatting, {}),
-                cellFormats: pj(args.cellFormats, {}),
-                cellFormatOptions: pj(args.cellFormatOptions, {})
+                formatting: args.formatting ? JSON.parse(args.formatting) : {}
             };
             return JSON.stringify(spreadsheetData);
         },
@@ -977,9 +942,6 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_whiteboard',
-        // Plan-picker badge join key (AI_REGISTRY multiBoardType) for tools whose
-        // comptype join misses (pseudo/fills-many comptypes).
-        planUIType: 'whiteboard',
         mcpDescription: `Create whiteboards for freeform brainstorming AND structured strategy work: sticky notes and sections, named frameworks (SWOT, SCAMPER, Six Thinking Hats, Fishbone, empathy maps, Lean/Business Model Canvas, retrospectives, priority/RACI/Eisenhower matrices), and mood / inspiration boards (style boards, aesthetic collections, color-palette references). NOT for kanban-style status columns (use render_kanban) or UI/screen mockups and wireframes (use render_wireframelite).
 
 STRUCTURE: { "components": { "c": [...] } }
@@ -1028,12 +990,6 @@ LAYOUT GUIDELINES:
 - 20-50px spacing between sections
 - 10-20px spacing between notes
 
-GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
-- Coordinates are canvas-relative and start at 0,0.
-- Choose a canvas size for the activity and keep EVERY component fully inside it: no part of any component (x, y, x+w, y+h) may fall outside the canvas. Typical sizes: small brainstorm 1200x800, medium brainstorm 1600x1200, large workshop 2000x1400, timeline/process 2400x900, mind map 1500x1200, project planning 1800x1200.
-- Do NOT overlap components: a note belongs beside its siblings inside its section's bounds, never on top of one. Lay the sections out on a grid before emitting JSON.
-- SIZE TEXT TO ITS CONTENT. Text that does not fit its w/h is auto-shrunk on the board (down to 5px), so a long note in a small box renders unreadably small. Budget about fs * 1.6 of height per line and enough width for the longest line plus padding. Section titles 16-24, note text 12-16.
-
 IMPORTANT: Always display the returned URL to the user.`,
         mcpInputSchema: {
             type: 'object',
@@ -1076,31 +1032,26 @@ IMPORTANT: Always display the returned URL to the user.`,
             try {
                 s = JSON.stringify(args.components || args);
             } catch (e) {}
-            // initoffset mirrors genwhiteboard: the layout's coordinates are canvas-relative,
-            // so the client (optimizer.generateLayout) must translate them by the board's
-            // init offset. Without it the components are created at raw canvas coordinates
-            // near the board origin instead of in the board's free area.
             return {
                 dataValue: s,
-                extraDataFields: { isCompressed: true, initoffset: true, generatedui: s }
+                extraDataFields: { isCompressed: true, generatedui: s }
             };
         },
         recipeOutputKeys: ['whiteboard', 'moodboard']
     },
     {
-        // WireframeLite — a lightweight UI wireframe frame (MF_WireframeLite_ID). Its
-        // HTML→paintObjects conversion is a custom client flow, so mapToolToGdata returns
-        // null (signalled by clientIsHtmlConversion) rather than the generic mapping.
+        // WireframeLite — IdeaBoard's lightweight UI wireframe frame (MF_WireframeLite_ID).
+        // Mirrors WireframePro's render_wireframe HTML→wireframe workflow, but is a SEPARATE
+        // IdeaBoard tool end-to-end: its own tool name (render_wireframelite → the Java
+        // /mcp/render_wireframelite endpoint), its own client aitype (genwireframelite) and its
+        // own frame component (MF_WireframeLite_ID). It deliberately does NOT reuse WireframePro's
+        // render_wireframe endpoint or genui path. Like WireframePro's render_wireframe, the
+        // HTML→paintObjects conversion is a custom client flow, so mapToolToGdata returns null
+        // (signalled by clientIsHtmlConversion) rather than the generic mapping.
         mcpToolName: 'render_wireframelite',
         mcpDescription: `Convert HTML to an editable UI wireframe inside a MockFlow IdeaBoard wireframe frame.
 
-Provide a complete HTML document with inline CSS styles. The HTML is rendered in a real browser and converted element by element into editable MockFlow components.
-
-READ THIS FIRST — MARKUP CONTRACT. The converter maps real markup onto real MockFlow components. Anything you SIMULATE with other markup arrives as a plain rectangle or a stray text character, so the user gets a broken screen:
-1. ICONS: an <img> whose src is a FontAwesome SVG URL (details in ICONS below). A text, unicode or emoji character standing in for an icon is not an icon — it converts to a stray glyph of text, not an icon component.
-2. CHARTS: a real Chart.js <canvas> (details in CHARTS below). Bars, arcs, sparklines or gauges built out of styled divs, borders, gradients or CSS shapes are not charts — they convert to a pile of rectangles the user cannot edit as a chart, and the data is lost.
-3. IMAGES: an <img> placeholder (details in IMAGES below).
-Never hand-draw what the contract already gives you a real element for. A UI screen with zero <img> icons, or a dashboard with zero <canvas>, is almost always a violation of this contract rather than a screen that genuinely has neither.
+Provide a complete HTML document with inline CSS styles. The HTML is rendered and automatically converted to editable wireframe components on the board.
 
 SCOPE — works for EITHER a full screen OR a single section/widget:
 - Full page/screen: a whole app screen, dashboard, or landing page. Use a page-width container (see DEVICE & VIEWPORT below) with a background color.
@@ -1110,75 +1061,23 @@ DEVICE & VIEWPORT — for a full screen, size and lay out the wireframe for the 
 - Honor an explicit device word in the request: a mobile/phone app screen → mobile width, a tablet/iPad screen → tablet width, a web/desktop screen → desktop width. "CRM mobile screen" MUST be a mobile-width layout, NOT desktop.
 - Give the outermost container that device's viewport width and lay it out to suit it: mobile ~390px (single column, stacked cards, bottom tab bar), tablet ~820px, desktop ~1280px (multi-column, sidebars). NEVER build a desktop-width layout for a mobile screen.
 - When no device is implied (a generic web app, website, dashboard, or admin panel), default to desktop web (~1280px).
-- Multi-screen app (several calls to this tool): keep ONE shared design system across the screens (same brand, colours, fonts, nav/footer chrome) and pass the SAME viewportWidth on every call so all frames come out the same width.
 
 IMPORTANT RULES:
 - Use inline styles (style attribute) for all styling — no external stylesheets
 - Use standard HTML elements: div, h1-h6, p, input, button, select, textarea, img, ul, li, table, form
 - Include realistic placeholder text and content
-- Pass a short screen name in "title" — it becomes the frame's title on the board. Name the screen ("Dashboard", "Checkout"), not the request
 - Set explicit widths and heights where possible
 - Use a clean, structured layout with proper nesting
 - Give the outermost container an explicit width and a background color
-- Never use position:fixed or position:sticky — every element must sit in normal document flow, or it captures at the wrong place
-- Never draw a device frame, phone bezel or browser chrome around the screen: output only the interface itself
 
-WIREFRAME STRUCTURE — this is a real UI screen, not a sparse block diagram. A screen that captures as a handful of grey boxes is a FAILED wireframe:
-- Compose the screen from clearly delineated SECTIONS, each in its own container: top nav / header bar, a status bar for mobile, distinct content sections, cards/panels grouping related content, forms, lists, and a footer or bottom tab bar where appropriate.
-- Build recognizable WIDGETS, not loose text on rectangles: buttons with labels, input fields with labels or placeholders, checkboxes/radios/toggles, dropdowns, tabs, search bars, avatars, badges, table rows, list rows, cards, KPI tiles. Each must read as a standard, self-contained UI control.
-- Fill the screen with the real content that screen would show: a dashboard gets a KPI row AND charts AND a data table AND a sidebar; a list screen gets 5-8 real rows, not 2. Use realistic copy relevant to the screen ("Email", "Sign in", "Overdue invoices"), never lorem ipsum.
-- Establish visual hierarchy and consistent spacing on an 8px grid — varied font sizes and weights, even margins, aligned edges. Give every section and widget explicit, sensible dimensions so each captures as its own editable component.
-- Size sections to their content: no absurdly tall hero or empty sections.
-
-STYLING / FIDELITY:
-- Default (no style, theme, platform, brand or colour named in the request): a clean flat GRAYSCALE wireframe — palette #FFFFFF, #F9FAFB, #F3F4F6, #E5E7EB, #D1D5DB, #9CA3AF, #6B7280, #4B5563, #374151, #1F2937, with no gradients, no shadows and grey buttons (#E5E7EB fill, #374151 text). Structure and density still matter: grayscale does NOT mean sparse.
-- When the request names or implies a theme, design system, UI framework, OS/platform, brand look or a colour: honor it — apply that theme's cohesive palette, fonts and component styling (colored fills, accents, and gradients/shadows where the theme calls for them) instead of the grayscale palette. iOS/Apple → Human Interface Guidelines; Android/Material/Google → Material Design 3; "mobile" → modern mobile conventions (bottom nav, cards, touch-friendly spacing).
-- Never sketchy or hand-drawn in either mode. Set the page-level background on <body>, section backgrounds on the sections themselves.
-
-ICONS (REQUIRED for any real UI screen — nav items, search, bell, chevrons, avatars, action buttons):
-- Every icon MUST be an <img> whose src is a FontAwesome SVG URL: https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/svgs/solid/{name}.svg — these are mapped onto MockFlow's real icon library, so they become editable icon components.
-- Colour: append it as a hex fragment when the icon needs a specific colour (.../solid/home.svg#374151). Omit it and the icon takes the colour of the text it sits with, so an icon inside a styled button, nav row or card is coloured for you — only state a colour when you want one that differs from its surrounding text.
-- Give EVERY icon <img> an explicit inline size: style="width:20px;height:20px;object-fit:contain;". An unsized SVG <img> falls back to its natural size (hundreds of px) and wrecks the layout. Typical icon sizes are 16-24px.
-- Any other way of putting an icon on the screen fails: inline <svg> code, icon fonts (<i class="fas fa-home">), and text/unicode/emoji characters used as glyphs all convert to nothing or to stray text, leaving holes where the icons should be. Every icon slot on the screen — including inside nav rows, buttons, list rows and stat cards — takes the <img> form above.
-
-IMAGES: no AI or stock imagery is generated for this tool. For photo/avatar/logo/thumbnail slots use <img src="placeholder" style="width:300px;height:200px;border:1px solid #ccc;"> with the intended dimensions (a border that suits the surrounding background); for full-bleed hero/banner backgrounds use a coloured <div> instead.
-
-CHARTS (use them whenever the screen is a dashboard, analytics, reporting or metrics screen — they become real, editable MockFlow chart components carrying their data and colours):
-1. Add Chart.js v3 in <head>: <script src="https://d20hhedk3h2l88.cloudfront.net/genai/chart.min.js"></script>
-2. WRAP every canvas in a container div with an EXPLICIT height and overflow:hidden:
-   <div style="position:relative;height:250px;overflow:hidden;"><canvas id="chart1" data-chart-component="true"></canvas></div>
-3. data-chart-component="true" on every chart canvas is REQUIRED — without it the canvas captures as an empty rectangle.
-4. Initialize each chart in a <script> at the end of <body>, inside a DOMContentLoaded handler, with realistic sample data and maintainAspectRatio:false.
-5. Heights: KPI-card charts 150-200px, dashboard panels 200-300px, large charts max 400px, never above 500px.
-6. Pick the type from the context: bar for comparisons, line for trends over time, pie/doughnut for distributions, filled line for cumulative/area, scatter/bubble/radar where they fit.
-7. The chart container background must match its surrounding card (do not hardcode white), and legend/label colours must contrast with it.
-8. Every data visual on the screen goes through this path — trend panels, KPI sparklines, funnel/pipeline breakdowns, progress and distribution graphics included. If you find yourself expressing values as div widths, heights, borders or gradients, that is a chart: express it as a canvas instead so it stays real data the user can edit.
-
-EXAMPLE (chart in a dashboard card):
-<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px">
-  <h3 style="margin:0 0 12px;font-size:15px">Revenue</h3>
-  <div style="position:relative;height:250px;overflow:hidden;"><canvas id="chart1" data-chart-component="true"></canvas></div>
-</div>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  new Chart(document.getElementById('chart1').getContext('2d'), {
-    type: 'bar',
-    data: { labels: ['Jan','Feb','Mar','Apr','May'], datasets: [{ label: 'Revenue', data: [12,19,15,25,22], backgroundColor: 'rgba(54,162,235,0.6)' }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-  });
-});
-</script>
+CHARTS: To include a chart, use a real Chart.js v3 <canvas> — add <script src="https://d20hhedk3h2l88.cloudfront.net/genai/chart.min.js"></script> in <head>, give the <canvas> data-chart-component="true", set maintainAspectRatio:false, and initialize it in a <script> at the end of <body>. It becomes a real, editable MockFlow chart with its data and colors.
 
 EXAMPLE (full screen):
 <html><body style="margin:0;padding:0">
 <div style="width:1280px;background:#fff;font-family:Arial,sans-serif">
   <header style="background:#2563eb;color:#fff;padding:20px 40px;display:flex;justify-content:space-between;align-items:center">
     <h1 style="margin:0;font-size:24px">AppName</h1>
-    <nav style="display:flex;align-items:center;gap:20px">
-      <a style="color:#fff;text-decoration:none">Home</a>
-      <img src="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/svgs/solid/bell.svg#ffffff" style="width:20px;height:20px;object-fit:contain;" alt="">
-      <img src="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/svgs/solid/user.svg#ffffff" style="width:20px;height:20px;object-fit:contain;" alt="">
-    </nav>
+    <nav><a style="color:#fff;margin-left:20px;text-decoration:none">Home</a></nav>
   </header>
   <main style="padding:40px">
     <h2>Welcome</h2>
@@ -1198,7 +1097,7 @@ EXAMPLE (single widget — a login card only):
 </div>
 </body></html>
 
-FIDELITY: "low" (default) = the flat grayscale wireframe described above; "hi" = a polished, colored high-fidelity mockup. Fidelity lives in the HTML you write — the flag only records your intent, so the HTML itself must match it.
+FIDELITY: Use "low" for a clean lo-fi outline wireframe (default), or "hi" for a polished high-fidelity mockup.
 
 IMPORTANT: Always display the returned URL to the user.`,
         mcpInputSchema: {
@@ -1212,22 +1111,15 @@ IMPORTANT: Always display the returned URL to the user.`,
                     type: 'string',
                     enum: ['low', 'hi'],
                     description: 'Wireframe fidelity. "low" = lo-fi outline (default), "hi" = polished high-fidelity mockup.'
-                },
-                title: {
-                    type: 'string',
-                    description: 'Short screen title shown on the wireframe frame\'s header (e.g. "Dashboard", "Login"). Name the SCREEN, not the request. Falls back to the HTML <title> tag when omitted.'
-                },
-                viewportWidth: {
-                    type: 'number',
-                    description: 'Viewport width in px the frame pins to (mobile ~390, tablet ~820, desktop ~1280). For a multi-screen app pass the SAME value on every screen call so all frames align at one width; omit for a single widget so the frame hugs its content.'
                 }
             },
             required: ['html']
         },
 
-        // Special: HTML → paintObjects flow handled by the consuming client, not the generic
-        // mapToolToGdata. clientIsHtmlConversion makes mapToolToGdata return null to signal
-        // "use custom HTML conversion". Uses the genwireframelite aitype + MF_WireframeLite_ID frame.
+        // Special: HTML → paintObjects flow handled by the consuming client (like WireframePro's
+        // render_wireframe), not the generic mapToolToGdata. clientIsHtmlConversion makes
+        // mapToolToGdata return null to signal "use custom HTML conversion". Uses IdeaBoard's own
+        // genwireframelite aitype + MF_WireframeLite_ID frame — never WireframePro's genui.
         clientAitype: 'genwireframelite',
         clientComp: 'MF_WireframeLite_ID',
         clientDataField: null,
@@ -1267,7 +1159,6 @@ HTML CONTRACT (required — the built-in player relies on it):
 INPUT:
 - html (required): the complete self-contained prototype HTML following the contract above.
 - deviceType (optional): "mobile" (default), "tablet", or "desktop" — MUST match the device you designed the screens for (see DEVICE & VIEWPORT).
-- title (optional): short prototype name shown on the frame's header (e.g. "Habit Tracker"). Falls back to the HTML <title> tag when omitted.
 
 IMPORTANT: Always display the returned board URL to the user.`,
         mcpInputSchema: {
@@ -1281,10 +1172,6 @@ IMPORTANT: Always display the returned board URL to the user.`,
                     type: 'string',
                     enum: ['mobile', 'tablet', 'desktop'],
                     description: 'Device frame the prototype is presented in AND the viewport you MUST design every screen for. Match the user\'s stated device (a "mobile app" → "mobile"). Defaults to "mobile". Design widths: mobile ~390px, tablet ~820px, desktop ~1280px.'
-                },
-                title: {
-                    type: 'string',
-                    description: 'Short prototype title shown on the frame\'s header (e.g. "Habit Tracker"). Falls back to the HTML <title> tag when omitted.'
                 }
             },
             required: ['html']
@@ -1610,10 +1497,8 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_datasimulator',
-        // Real-world/current data component: the local agent may web-research first.
-        webResearch: true,
-        // The spec format + expression language below is kept in sync with the DataSimulator
-        // generator's spec reference — edit both together.
+        // The spec format + expression language below is kept in sync with the `specReference`
+        // block in nodejs-server/editor/aitools/gendatasimulator.js — edit both together.
         mcpDescription: `Create a live, parameterized what-if simulation: a runnable model the user drives with sliders and play/scrub controls, every output recomputing as they move. Use this for business models (growth, churn, revenue, unit economics), funnels with conversion rates, forecasts and projections, capacity/queue models, epidemic/population dynamics, financial models (compound interest, runway), sensitivity/what-if analysis, and data infographics (metric cards, charts, gauges and funnels composed around one topic). Use this INSTEAD of a chart or table whenever the point is to explore how outcomes CHANGE as the inputs change over time.
 
 You are building a MODEL, not a picture and not an answer. Define parameters (the user's decision levers), state (the evolving variables), rules (how state updates each step) and derived values, then choose views to display them. Never bake a guessed outcome into the data — outcomes must emerge from the rules running step by step. The client runtime runs the model deterministically.
@@ -2106,10 +1991,6 @@ IMPORTANT: Always display the returned URL to the user.`,
         mcpInputSchema: {
             type: 'object',
             properties: {
-                title: {
-                    type: 'string',
-                    description: 'A short title for the schema, shown as the frame header (e.g. "E-commerce Database").'
-                },
                 class: {
                     type: 'string',
                     description: "Always 'GraphLinksModel'"
@@ -2167,8 +2048,6 @@ IMPORTANT: Always display the returned URL to the user.`,
         // Client-side rendering (showResults gdata mapping)
         clientAitype: 'gendbdiagram',
         clientComp: null,
-        // Fills an MF_DiagramFrame in place (its sendGenText routes gendbdiagram data).
-        fillsComptype: 'MF_DiagramFrame',
         clientDataField: 'generateddbdiagram',
         clientPrompt: 'database',
         clientPromptField: null,
@@ -2205,9 +2084,7 @@ NODE PROPERTIES:
 - color: Hex color for the node
 
 NODE COLORS by type:
-- Default node colors by type: Processes "#bae6fd" (light blue), Decisions "#fde68a" (light yellow), Start/End "#bbf7d0" (light green), Data "#e9d5ff" (light purple)
-- Keep node backgrounds light so black text stays readable. NEVER use dark node backgrounds unless the user explicitly asks for a "dark theme".
-- If the prompt names a color theme/style, override these to match it while keeping backgrounds light enough for black text
+- Processes: "#4FC3F7", Decisions: "#FFB74D", Start/End: "#81C784", Data: "#CE93D8"
 
 LAYOUT RULES:
 - Flow goes left-to-right within rows
@@ -2313,8 +2190,6 @@ IMPORTANT: Always display the returned URL to the user.`,
         // Client-side rendering (showResults gdata mapping)
         clientAitype: 'genswimlane',
         clientComp: null,
-        // Fills an MF_Swimlane_ID in place (its sendGenText reads data.generatedtext).
-        fillsComptype: 'MF_Swimlane_ID',
         clientDataField: 'generatedtext',
         clientPrompt: 'swimlane',
         clientPromptField: null,
@@ -2324,8 +2199,6 @@ IMPORTANT: Always display the returned URL to the user.`,
 
     {
         mcpToolName: 'render_timeline',
-        // Real-world/current data component: the local agent may web-research first.
-        webResearch: true,
         mcpDescription: `Create a timeline for visualizing chronological events, milestones, history, evolution, or sequential stages. Use this for simple chronological visualization of events or milestones WITHOUT task management. For project plans with tasks, durations, progress, and assignees, use render_gantt instead.
 
 FIRST, decide whether the topic is best represented with dates or labels:
@@ -2412,446 +2285,12 @@ IMPORTANT: Always display the returned URL to the user.`,
         recipeOutputKeys: ['timeline']
     },
 
-    {
-        mcpToolName: 'render_checklist',
-        mcpDescription: `Create a checklist / to-do list of actionable tasks with checkboxes. Use this for task lists, action items, checklists, shopping lists, project task breakdowns, or any content organizing things that need to be completed. For status-column task boards use render_kanban; for scheduled tasks with durations use render_gantt.
-
-STRUCTURE RULES:
-- Output a single "title" string and a "data" array of task items
-- title: A descriptive, engaging title summarizing the checklist topic (e.g., "Spring Home Maintenance Checklist")
-- data: Array of 3-8 task items (not too few, not too many)
-
-TASK ITEM PROPERTIES:
-- item: Clear, actionable task description (required, never empty)
-- checked: Boolean completion state - set false for all items unless the prompt clearly states a task is already done
-
-CONTENT GUIDELINES:
-- Items must be actionable, specific, achievable tasks that relate to the prompt - not general concepts
-- Use clear, concise language; mix urgent and non-urgent tasks appropriately
-- Every item must have content - never emit empty items`,
-        mcpInputSchema: {
-            type: 'object',
-            properties: {
-                title: {
-                    type: 'string',
-                    description: 'Descriptive title for the checklist (e.g., "Weekly Shopping List", "New Product Launch - Project Tasks")'
-                },
-                data: {
-                    type: 'array',
-                    description: 'Array of checklist task items (3-8 recommended)',
-                    items: {
-                        type: 'object',
-                        properties: {
-                            item: { type: 'string', description: 'Clear, actionable task description' },
-                            checked: { type: 'boolean', description: 'Completion state - false for all items unless already done', default: false }
-                        },
-                        required: ['item', 'checked']
-                    }
-                }
-            },
-            required: ['title', 'data']
-        },
-        clientAitype: 'gencomp',
-        clientComp: 'MF_CheckList_ID',
-        clientDataField: 'generatedtodo',
-        clientPrompt: 'checklist',
-        clientPromptField: null,
-        clientTransform: null,
-        recipeOutputKeys: ['checklist']
-    },
-    {
-        mcpToolName: 'render_poll',
-        mcpDescription: `Create a poll / voting question where users pick from predefined options. Use this for polls, surveys, opinion votes, multiple-choice questions, audience polls, feedback forms, or quick votes. For collecting AND upvoting open-ended ideas use render_upvoteideas; for a random picker use render_spinningwheel.
-
-STRUCTURE RULES:
-- Output a "question" string and an "options" array of 3-6 distinct string choices (2-8 allowed)
-- question: A clear, engaging poll question
-- options: Concise, mutually exclusive string choices that cover the topic; no duplicates, no empty strings
-- Consider an "Other" or "Not sure" option when appropriate
-
-OPTIONAL IMAGES:
-- Only include "optionImages" if you have real image URLs (one per option, index-aligned to options). Omit this field entirely for a normal text poll - do not fabricate image URLs.`,
-        mcpInputSchema: {
-            type: 'object',
-            properties: {
-                question: {
-                    type: 'string',
-                    description: 'The poll question (e.g., "What is your favorite programming language?")'
-                },
-                options: {
-                    type: 'array',
-                    description: 'Array of 3-6 distinct, non-empty string options to vote on',
-                    items: { type: 'string' }
-                },
-                optionImages: {
-                    type: 'array',
-                    description: 'OPTIONAL. Real image URLs, one per option, index-aligned with options. Omit for a text poll.',
-                    items: { type: 'string' }
-                }
-            },
-            required: ['question', 'options']
-        },
-        clientAitype: 'gencomp',
-        clientComp: 'MF_Poll_ID',
-        clientDataField: 'generatedpoll',
-        clientPrompt: 'poll',
-        clientPromptField: null,
-        clientTransform: null,
-        recipeOutputKeys: ['poll']
-    },
-    {
-        mcpToolName: 'render_upvoteideas',
-        mcpDescription: `Create an idea board where users submit and upvote ideas. Use this for idea lists, feature request boards, suggestion boxes, brainstorm lists, feedback boards, or any content where users vote up/down open-ended ideas or suggestions. For fixed multiple-choice voting use render_poll; for a random picker use render_spinningwheel.
-
-STRUCTURE RULES:
-- Output a "question" (board heading), an optional "title", and an "options" array of idea strings
-- question: The board heading / prompt (e.g., "Product Improvement Ideas") - shown as the component title
-- options: Array of 4-6 distinct idea strings (2-10 allowed); each 1-2 sentences, actionable, no duplicates, no empty strings
-
-CONTENT GUIDELINES:
-- Ideas should be distinct suggestions or feature requests that cover different aspects of the topic
-- Keep each idea concise but descriptive enough to understand`,
-        mcpInputSchema: {
-            type: 'object',
-            properties: {
-                question: {
-                    type: 'string',
-                    description: 'Board heading / prompt, shown as the component title (e.g., "Project Management Feature Ideas")'
-                },
-                title: {
-                    type: 'string',
-                    description: 'Optional title (same topic as question); used as a fallback heading'
-                },
-                options: {
-                    type: 'array',
-                    description: 'Array of 4-6 distinct idea strings that users can upvote',
-                    items: { type: 'string' }
-                }
-            },
-            required: ['question', 'options']
-        },
-        clientAitype: 'gencomp',
-        clientComp: 'MF_UpvoteIdeas_ID',
-        // the component's sendGenText reads gentext.data.generatedpoll
-        clientDataField: 'generatedpoll',
-        clientPrompt: 'upvoteideas',
-        clientPromptField: null,
-        clientTransform: null,
-        recipeOutputKeys: ['upvoteideas']
-    },
-    {
-        mcpToolName: 'render_spinningwheel',
-        mcpDescription: `Create a spinning wheel / random picker with labeled segments. Use this for prize wheels, decision wheels, random selectors, wheel-of-fortune games, icebreakers, or any wheel-based random choice tool. For structured voting use render_poll; for upvotable ideas use render_upvoteideas.
-
-STRUCTURE RULES:
-- Output a "title" string and an "options" array of segment labels
-- title: A fun, engaging title for the wheel (e.g., "What's for Lunch?")
-- options: Array of 4-8 short string segment labels (4-12 allowed); ideally 1-4 words each so they fit on a wheel segment
-
-CONTENT GUIDELINES:
-- Options should be distinct, readable, and relate to the prompt (decisions, games, prizes, random selection)
-- No empty options; keep labels short`,
-        mcpInputSchema: {
-            type: 'object',
-            properties: {
-                title: {
-                    type: 'string',
-                    description: 'Fun, engaging title for the spinning wheel (e.g., "What is for Lunch?")'
-                },
-                options: {
-                    type: 'array',
-                    description: 'Array of 4-8 short string segment labels (1-4 words each)',
-                    items: { type: 'string' }
-                }
-            },
-            required: ['title', 'options']
-        },
-        clientAitype: 'gencomp',
-        clientComp: 'MF_SpinningWheel_ID',
-        clientDataField: 'generatedwheel',
-        clientPrompt: 'spinningwheel',
-        clientPromptField: null,
-        clientTransform: null,
-        recipeOutputKeys: ['spinningwheel']
-    },
-    {
-        mcpToolName: 'render_designframe',
-        mcpDescription: `Create an editable graphic/marketing DESIGN inside a MockFlow IdeaBoard design frame (posters, flyers, banners, social posts, business cards, brand/slide layouts). For UI screens/wireframes use render_wireframelite; for brainstorming/strategy canvases use render_whiteboard.
-
-The design is a COMPRESSED component layout: an object { "components": { "c": [ ...components ] } } where each component uses short keys. Author real, positioned editable components.
-
-REQUIRED KEYS PER COMPONENT: t (type), x, y, w, h, a (angle, 0), e (unique id).
-COMPONENT TYPES: MF_Section / MF_Rectangle2 (color blocks, cards, background container - the full-bleed background block should be first), MF_Text (headings, body, labels: tx text, ta align, fs size, fcl color, fw weight), MF_Ellipse2 (circles/dots). Do NOT use MF_ImageComp (no image URLs available).
-STYLE KEYS: fc (fill colors array e.g. ["#2563eb","#2563eb"]), ft "solid", tx (text), fcl (font color), fs (font size), fw ("bold"/"normal"), ta ("left"/"center"/"right"), fnt "sourcesanspro".
-
-GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
-- Coordinates are canvas-relative and start at 0,0. The FIRST component is the background: x 0, y 0, w/h = the full canvas.
-- Choose a canvas size for the medium and keep EVERY component fully inside it: no part of any component (x, y, x+w, y+h) may fall outside the canvas. Typical sizes: Instagram post 1080x1080, story 1080x1920, Facebook cover 1920x1080, business card 1050x600, poster/flyer 1080x1350, A4 595x842, logo 400x400, website hero 1920x600, email header 600x200, YouTube thumbnail 1280x720.
-- Do NOT overlap components unless the overlap is deliberate (text sitting on its own background block). Plan a grid or column layout before emitting JSON and keep 10-20px between neighbours.
-- SIZE TEXT BOXES TO THEIR CONTENT. Text that does not fit its w/h is auto-shrunk on the board (down to 5px), so a heading in an undersized box renders unreadably small. Budget about fs * 1.6 of height per line of text and enough width for the longest line plus padding.
-- Font sizes: headlines 32-72, subheads 20-32, body 14-18, captions 10-14.
-- Set border width (bw) to 0 on any component that touches a canvas edge.`,
-        mcpInputSchema: {
-            type: 'object',
-            properties: {
-                title: {
-                    type: 'string',
-                    description: 'A short title shown as the frame header (e.g. "Q3 Campaign Poster").'
-                },
-                components: {
-                    type: 'object',
-                    description: "Compressed design layout with 'c' array of components (MF_Section, MF_Rectangle2, MF_Text, MF_Ellipse2).",
-                    properties: {
-                        c: {
-                            type: 'array',
-                            items: {
-                                type: 'object',
-                                properties: {
-                                    t: { type: 'string', description: 'Component type (MF_Section, MF_Rectangle2, MF_Text, MF_Ellipse2)' },
-                                    x: { type: 'number' }, y: { type: 'number' },
-                                    w: { type: 'number' }, h: { type: 'number' },
-                                    a: { type: 'number', description: 'Angle, always 0' },
-                                    e: { type: 'string', description: 'Unique element ID' },
-                                    tx: { type: 'string', description: 'Text content (MF_Text)' },
-                                    fc: { type: 'array', items: { type: 'string' }, description: 'Fill colors array' }
-                                },
-                                required: ['t', 'x', 'y', 'w', 'h', 'e']
-                            }
-                        }
-                    },
-                    required: ['c']
-                }
-            },
-            required: ['components']
-        },
-        clientAitype: 'gendesigner2',
-        clientComp: null,
-        fillsComptype: 'MF_DesignFrame_ID',
-        clientDataField: 'generatedui',
-        clientPrompt: 'design',
-        clientPromptField: null,
-        clientTransform: function(args) {
-            // Carry the frame title inside the compressed layout so the client
-            // (optimizer.applyModification -> compdata.title) labels the frame,
-            // exactly like server-generated frames.
-            var layout = args.components || args || {};
-            if (args.title && !layout.title) { try { layout.title = args.title; } catch (e) {} }
-            var s = '';
-            try { s = JSON.stringify(layout); } catch (e) {}
-            // initoffset mirrors gendesigner2: the layout's coordinates are canvas-relative,
-            // so the client (optimizer.generateLayout) must translate them by the board's
-            // init offset. Without it the children are created at raw canvas coordinates
-            // near the board origin while the frame is created at the init offset.
-            return { dataValue: s, extraDataFields: { isCompressed: true, initoffset: true, container: true } };
-        },
-        recipeOutputKeys: ['design']
-    },
-    {
-        mcpToolName: 'render_moodframe',
-        // Plan-picker badge join key (AI_REGISTRY multiBoardType) for tools whose
-        // comptype join misses (pseudo/fills-many comptypes).
-        planUIType: 'moodboard',
-        mcpDescription: `Create a TEXT-ONLY mood/inspiration board inside a MockFlow IdeaBoard mood frame: color palette swatches, typography specimens, and keyword/mood text tiles. NOTE: this tool cannot place photographic imagery - for an image-rich moodboard the in-app AI generator (which generates images server-side) is required.
-
-Compressed component layout { "components": { "c": [ ... ] } }. Convey the mood entirely through:
-- MF_Rectangle2 / MF_Section color-swatch blocks (fc fill array) arranged as a palette.
-- MF_Text typography specimens (large display words) and keyword tiles (fs size, fcl color, fw weight, fnt).
-Do NOT emit MF_ImageComp (no image URLs available).
-
-REQUIRED KEYS PER COMPONENT: t, x, y, w, h, a (0), e.
-
-GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
-- Coordinates are canvas-relative and start at 0,0. Use MF_Section exactly ONCE, as the FIRST component, at x 0, y 0 with w/h = the full canvas: it is the background all other components sit on, and its tx must be "".
-- Choose a canvas size and keep EVERY component fully inside it: no part of any component (x, y, x+w, y+h) may fall outside the canvas. Typical sizes: standard moodboard 1200x800, Pinterest style 735x1102, square 1080x1080, portrait 800x1200, collage 1000x1000.
-- NO OVERLAPPING: before placing a component check that its bounding box does not intersect any already-placed one, and leave at least 10px between neighbours. Plan a grid or column layout before emitting JSON.
-- SIZE TEXT BOXES TO THEIR CONTENT. Text that does not fit its w/h is auto-shrunk on the board (down to 5px), so a display word in an undersized box renders unreadably small. Budget about fs * 1.6 of height per line and enough width for the longest line plus padding.
-- Font sizes: hero/display 48-120, subtitles 24-36, body 14-18, labels 10-14.`,
-        mcpInputSchema: {
-            type: 'object',
-            properties: {
-                title: {
-                    type: 'string',
-                    description: 'A short title shown as the frame header (e.g. "Brand Mood Board").'
-                },
-                components: {
-                    type: 'object',
-                    description: "Compressed moodboard layout with 'c' array (MF_Rectangle2/MF_Section color swatches, MF_Text specimens/keywords). No image components.",
-                    properties: {
-                        c: {
-                            type: 'array',
-                            items: {
-                                type: 'object',
-                                properties: {
-                                    t: { type: 'string', description: 'MF_Rectangle2, MF_Section, or MF_Text' },
-                                    x: { type: 'number' }, y: { type: 'number' },
-                                    w: { type: 'number' }, h: { type: 'number' },
-                                    a: { type: 'number', description: 'Angle, always 0' },
-                                    e: { type: 'string' },
-                                    tx: { type: 'string' },
-                                    fc: { type: 'array', items: { type: 'string' } }
-                                },
-                                required: ['t', 'x', 'y', 'w', 'h', 'e']
-                            }
-                        }
-                    },
-                    required: ['c']
-                }
-            },
-            required: ['components']
-        },
-        clientAitype: 'genmoodboard',
-        clientComp: null,
-        fillsComptype: 'MF_MoodFrame_ID',
-        clientDataField: 'generatedui',
-        clientPrompt: 'moodboard',
-        clientPromptField: null,
-        clientTransform: function(args) {
-            // Carry the frame title inside the compressed layout so the client
-            // (optimizer.applyModification -> compdata.title) labels the frame,
-            // exactly like server-generated frames.
-            var layout = args.components || args || {};
-            if (args.title && !layout.title) { try { layout.title = args.title; } catch (e) {} }
-            var s = '';
-            try { s = JSON.stringify(layout); } catch (e) {}
-            // initoffset mirrors genmoodboard: the layout's coordinates are canvas-relative,
-            // so the client (optimizer.generateLayout) must translate them by the board's
-            // init offset. Without it the children are created at raw canvas coordinates
-            // near the board origin while the frame is created at the init offset.
-            return { dataValue: s, extraDataFields: { isCompressed: true, initoffset: true, container: true } };
-        },
-        recipeOutputKeys: []
-    },
-    {
-        mcpToolName: 'render_whiteboardframe',
-        // Plan-picker badge join key (AI_REGISTRY multiBoardType) for tools whose
-        // comptype join misses (pseudo/fills-many comptypes).
-        planUIType: 'whiteboard',
-        mcpDescription: `Create a whiteboard WRAPPED IN a MockFlow IdeaBoard whiteboard frame (a single framed board component), for brainstorming and strategy canvases: sticky notes, sections, and named frameworks (SWOT, retro, empathy map, business model canvas, matrices). Differs from render_whiteboard, which drops the same content as LOOSE components on the canvas rather than inside a frame.
-
-Compressed layout { "components": { "c": [ ... ] } }:
-- MF_Section: container areas (tx title, fc pastel fill e.g. ["#f0f8ff","#f0f8ff"]).
-- MF_Note2: sticky notes (tx text, fc e.g. ["#fbf4a4","#fbf4a4"]).
-- MF_Text: labels/headers.
-REQUIRED KEYS: t, x, y, w, h, a (0), e.
-
-GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
-- Coordinates are canvas-relative and start at 0,0.
-- Choose a canvas size for the activity and keep EVERY component fully inside it: no part of any component (x, y, x+w, y+h) may fall outside the canvas. Typical sizes: small brainstorm 1200x800, medium brainstorm 1600x1200, large workshop 2000x1400, timeline/process 2400x900, mind map 1500x1200, project planning 1800x1200.
-- Do NOT overlap components: a note belongs beside its siblings inside its section's bounds, never on top of one. Lay the sections out on a grid before emitting JSON.
-- Sizes: MF_Section 300-800 wide by 200-600 high, MF_Note2 120-200 wide by 80-150 high. Leave 20-50px between sections and 10-20px between notes.
-- SIZE TEXT TO ITS CONTENT. Text that does not fit its w/h is auto-shrunk on the board (down to 5px), so a long note in a small box renders unreadably small. Budget about fs * 1.6 of height per line and enough width for the longest line plus padding. Section titles 16-24, note text 12-16.`,
-        mcpInputSchema: {
-            type: 'object',
-            properties: {
-                title: {
-                    type: 'string',
-                    description: 'A short title shown as the frame header (e.g. "Sprint Retro Board").'
-                },
-                components: {
-                    type: 'object',
-                    description: "Compressed whiteboard layout with 'c' array (MF_Section, MF_Note2, MF_Text).",
-                    properties: {
-                        c: {
-                            type: 'array',
-                            items: {
-                                type: 'object',
-                                properties: {
-                                    t: { type: 'string', description: 'MF_Section, MF_Note2, or MF_Text' },
-                                    x: { type: 'number' }, y: { type: 'number' },
-                                    w: { type: 'number' }, h: { type: 'number' },
-                                    a: { type: 'number', description: 'Angle, always 0' },
-                                    e: { type: 'string' },
-                                    tx: { type: 'string' },
-                                    fc: { type: 'array', items: { type: 'string' } }
-                                },
-                                required: ['t', 'x', 'y', 'w', 'h', 'e']
-                            }
-                        }
-                    },
-                    required: ['c']
-                }
-            },
-            required: ['components']
-        },
-        clientAitype: 'genwhiteboard',
-        clientComp: null,
-        fillsComptype: 'MF_WhiteboardFrame_ID',
-        clientDataField: 'generatedui',
-        clientPrompt: 'whiteboard',
-        clientPromptField: null,
-        clientTransform: function(args) {
-            // Carry the frame title inside the compressed layout so the client
-            // (optimizer.applyModification -> compdata.title) labels the frame,
-            // exactly like server-generated frames.
-            var layout = args.components || args || {};
-            if (args.title && !layout.title) { try { layout.title = args.title; } catch (e) {} }
-            var s = '';
-            try { s = JSON.stringify(layout); } catch (e) {}
-            // initoffset mirrors genwhiteboard: the layout's coordinates are canvas-relative,
-            // so the client (optimizer.generateLayout) must translate them by the board's
-            // init offset. Without it the children are created at raw canvas coordinates
-            // near the board origin while the frame is created at the init offset.
-            return { dataValue: s, extraDataFields: { isCompressed: true, initoffset: true, container: true } };
-        },
-        recipeOutputKeys: []
-    },
-    // ========================================================================
-    // plan_board — Declare a multi-part board plan BEFORE drawing (bridge-native:
-    // handled by the MockFlow Bridge like layout_board; the hosted server rejects
-    // non-render tools gracefully). Arms the plan-first pipeline: the bridge counts
-    // the following draws and auto-arranges the batch (bento + titled section) when
-    // every planned item has been rendered — the MockFlow AI multiboard flow.
-    // ========================================================================
-    {
-        mcpToolName: 'plan_board',
-        mcpDescription: `Propose a multi-part board plan and END YOUR TURN. Call this whenever a request needs several visualizations - a plan, workspace, dashboard, kit, or a multi-screen app - listing every component with the render_* tool that draws it and a self-contained brief.
-
-The list is shown to the user on their board to confirm or trim. When they click Generate Board, the chosen items are generated FROM YOUR BRIEFS and arranged automatically - all without you. So after this call: do not render anything, do not call any more tools; just tell the user to review the list and click Generate Board. Any render call you make while they are choosing is refused.
-
-Guidelines:
-- Break the request into the components a product team would expect (e.g. a launch plan: kanban + timeline + mindmap; an app concept: one wireframe per screen).
-- Each brief must stand alone (the generator sees ONLY the briefs, not this conversation): what the component shows, the actual content/data or how to derive it, and for screens the device, viewport width and visual style.
-- Multi-screen wireframes/apps: one render_wireframelite item PER SCREEN; give every screen brief the same design system and the SAME viewportWidth so the screens come out matching.
-- NEVER ask a generator to fabricate specific real-world data the user did not provide - no invented vendor/company names, people, phone numbers, email addresses, URLs, prices or contact details. For tables and spreadsheets, describe the STRUCTURE and CATEGORIES ("columns: Item, Estimated Cost, Priority") and say to use neutral placeholder labels ("Item 1", "Vendor A") rather than inventing realistic-sounding entities.
-
-CHARTS DATA GATE - only include a render_chart item when the request actually carries concrete quantitative data (specific numbers, percentages, amounts, counts, time-series, or measurable comparisons) belonging to this board's topic, OR when the user explicitly asks for a chart. Do NOT add a chart just to diversify the board: a chart populated with invented numbers is misleading, so when no real data is available, omit charts entirely and pick a non-numeric visual instead. When you do include one, embed the real data points verbatim in its brief and say what goes on each axis.`,
-        mcpInputSchema: {
-            type: 'object',
-            properties: {
-                boardTitle: {
-                    type: 'string',
-                    description: 'Title for the board section wrapping the batch (e.g. "Mobile App Launch Plan", "CRM App Screens")'
-                },
-                items: {
-                    type: 'array',
-                    minItems: 2,
-                    description: 'Every component of the plan, in generation order.',
-                    items: {
-                        type: 'object',
-                        properties: {
-                            tool: { type: 'string', description: 'The render_* tool that draws this item (e.g. render_kanban, render_wireframelite)' },
-                            name: { type: 'string', description: 'Short name of the item (e.g. "Launch tasks", "Login screen")' },
-                            brief: { type: 'string', description: 'Self-contained spec the item is generated from after the user confirms (the generator sees only this, not the conversation): content, real data or how to derive it, device/viewportWidth and style for screens.' }
-                        },
-                        required: ['tool', 'name', 'brief']
-                    }
-                }
-            },
-            required: ['boardTitle', 'items']
-        },
-        clientAitype: null,
-        clientComp: null,
-        clientDataField: null,
-        clientPrompt: null,
-        clientPromptField: null,
-        clientTransform: null
-    },
     // ========================================================================
     // layout_board — Arrange recently created components in bento layout
     // ========================================================================
     {
         mcpToolName: 'layout_board',
-        mcpDescription: 'IMPORTANT: After creating 2 or more visualizations using individual render_* tools, call this tool to arrange them in a professional bento-box grid layout with a titled section wrapper.\n\nWorkflow:\n1. Call render_kanban, render_gantt, render_mindmap etc. one by one\n2. Call layout_board with a title to arrange everything neatly\n\nThis tool takes all recently created components (since the last layout_board call) and arranges them in rows, wrapped in a titled section.\n\nALWAYS call this after creating multiple visualizations - EXCEPT when you declared the batch with plan_board first: an active plan arranges the board automatically after the last planned item, so do not also call this.',
+        mcpDescription: 'IMPORTANT: After creating 2 or more visualizations using individual render_* tools, call this tool to arrange them in a professional bento-box grid layout with a titled section wrapper.\n\nWorkflow:\n1. Call render_kanban, render_gantt, render_mindmap etc. one by one\n2. Call layout_board with a title to arrange everything neatly\n\nThis tool takes all recently created components (since the last layout_board call) and arranges them in rows, wrapped in a titled section.\n\nALWAYS call this after creating multiple visualizations.',
         mcpInputSchema: {
             type: 'object',
             properties: {
@@ -2870,62 +2309,6 @@ CHARTS DATA GATE - only include a render_chart item when the request actually ca
         clientTransform: null
     }
 ];
-
-// ============================================================================
-// Content grounding
-// ============================================================================
-/**
- * The anti-fabrication rule, authored ONCE and appended to every content-bearing
- * render_* description below.
- *
- * WHY THIS LIVES HERE: MockFlow's own server generators each carry their own copy
- * of this rule (gentable.js, gendatagrid.js, genspreadsheet.js, genkanban.js,
- * genboardplan.js) because they write the component themselves. An agent driving
- * these MCP tools never runs those generators - it authors the values from the
- * tool description alone - so without this clause it has the schema but none of
- * the content rules, and invents realistic-looking people, vendors and figures.
- *
- * Deliberately capability-conditional and tool-agnostic: this text is read by the
- * bridge, the hosted and desktop MCP servers, the Slack and GPT-action generators,
- * and by third-party agents (Cursor, Codex, ...). It must never name a specific
- * agent's web-search tool, or an agent without one is told to call something that
- * does not exist.
- */
-var CONTENT_GROUNDING = `
-
-CONTENT GROUNDING (applies to every value you generate):
-- Do NOT fabricate specific real-world data the user did not provide: no invented person names, company/vendor/brand names, phone numbers, email addresses, URLs, street addresses, prices, or statistics.
-- Use neutral placeholders instead ("Vendor A", "Item 1", "Guest 1", "person@example.com"), or well-known public facts.
-- Only include specific real-world entities when the user named them, or when you researched them and they are real.
-- Never present invented numbers as if they were real data. If a request needs data you do not have, generate the STRUCTURE (headings, columns, categories) and leave placeholder values.
-- If you can research the web and the request depends on real-world or current facts, ground it first. If you have no research capability, generate from your own knowledge and keep unknown specifics as placeholders - never stop, and never fill the gap with invented detail.`;
-
-/**
- * Design surfaces are exempt: a wireframe or prototype of a contacts screen is
- * SUPPOSED to show plausible sample rows - that is what a mockup is - and their
- * server generators carry no such rule either. The clause targets data-bearing
- * components (tables, spreadsheets, kanban, checklists, charts, ...), which is
- * where invented content reads as fact rather than as a placeholder.
- */
-var GROUNDING_EXEMPT = [
-    'render_wireframelite',
-    'render_prototypelite',
-    'render_designframe',
-    'render_moodframe',
-    'render_whiteboardframe'
-];
-
-// Applied at definition time, so EVERY consumer of the catalog gets it with no
-// change on their side: getToolDefinitions (bridge + MCP servers) and the paths
-// that read entry.mcpDescription directly as a generation prompt
-// (integrationAPIManager, slackManager). Appended at the end, so readers that
-// summarise with .split('\n')[0] are unaffected.
-for (var _gi = 0; _gi < IDEABOARD_MCP_REGISTRY.length; _gi++) {
-    var _ge = IDEABOARD_MCP_REGISTRY[_gi];
-    if (typeof _ge.mcpToolName !== 'string' || _ge.mcpToolName.indexOf('render_') !== 0) continue;
-    if (GROUNDING_EXEMPT.indexOf(_ge.mcpToolName) !== -1) continue;
-    _ge.mcpDescription = String(_ge.mcpDescription || '') + CONTENT_GROUNDING;
-}
 
 // Helper: build tool definitions array for MCP servers
 IDEABOARD_MCP_REGISTRY.getToolDefinitions = function() {
@@ -2999,6 +2382,7 @@ IDEABOARD_MCP_REGISTRY.buildRecipeToToolMap = function() {
 
 /**
  * Sanitize GoJS flowchart data: round coordinates, fix dimensions, remove orphan links.
+ * Same logic as genflow.js sanitizeGoJSData.
  */
 IDEABOARD_MCP_REGISTRY.sanitizeFlowData = function(args) {
     try {
