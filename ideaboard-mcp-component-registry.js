@@ -10,6 +10,38 @@
  * derived catalog: each component's capabilities and scope mirror the MockFlow
  * component registry, so keep the two in step when a component's scope changes
  * (correlate entries by recipe key) and run `node --check` after edits.
+ *
+ * ===== Filling a component in place =====
+ * A component's Generate / Modify AI (QuickSettings, and the chat modify tool) runs
+ * on a LOCAL agent by handing the tool's output to the component being edited instead
+ * of drawing a new one. An HTML-conversion tool (clientIsHtmlConversion) normally
+ * cannot do that, because its output is converted and drawn by the tab. Declare
+ * `clientHtmlFillsInPlace: true` when the component CAN adopt that conversion as its
+ * own content (its sendGenText takes the converted result), or its local Generate /
+ * Modify has no tool to run and always falls back to MockFlow AI.
+ *
+ * ===== Image slots (local agents) =====
+ * A local agent is a text model: it can author a component but cannot produce
+ * the imagery inside it. MockFlow generates that imagery in the user's own tab,
+ * against their AI credits, so it is their choice - which the bridge asks for
+ * once per turn, the moment an image-capable tool is reached. Three fields drive
+ * the whole flow, so a component gains it by declaring them and nothing else:
+ *
+ *   imageSlots         true when this component can carry AI-generated imagery.
+ *                      This alone is what makes the bridge ask the user.
+ *   imageSlotForm      what a filled slot is replaced with: 'imageID' for a
+ *                      component that stores a library id, 'url' for one that
+ *                      stores a link. Ignored for slots written inside an HTML
+ *                      or markdown document, which always take a URL.
+ *   imageSlotGuidance  one sentence telling the agent WHERE this component's
+ *                      slots go. Delivered when the user says yes, so the agent
+ *                      renders again with them.
+ *
+ * A slot is written the way its medium already expresses an image, so the same
+ * content works whichever AI produced it: "mfimg::<what the picture shows>" as a
+ * field value in component data, <img data-ai-prompt="..."> in HTML, and
+ * ![alt](prompt:: "...") in markdown. Mirror any component's own image capability
+ * (AI_REGISTRY aiImageEnabled / askImages) when you add or remove these.
  */
 
 var IDEABOARD_MCP_REGISTRY = [
@@ -497,6 +529,13 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_markdown',
+        imageSlots: true,
+        imageSlotForm: 'url',
+        imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY.
+- Add an image tag to the sections that genuinely benefit from a visual, written as ![alt text](prompt:: "what the picture shows").
+- Describe only visuals - no text, letters, labels or numbers inside the picture.
+- Give every image the same style suffix so the document reads as one piece.`,
+        imagesOffGuidance: `THIS RENDER HAS NO IMAGERY - write the document with no image tags at all.`,
         mcpDescription: `Create markdown documents with headings, paragraphs, lists, and AI-generated images.
 
 MARKDOWN FORMAT:
@@ -510,7 +549,8 @@ MARKDOWN FORMAT:
 - Horizontal rules: ---
 
 AI-GENERATED IMAGES:
-When the document would benefit from visual aids, include image tags with descriptive prompts:
+ONLY when you have been told this render includes images. Otherwise write the document with no image tags at all.
+When it does, include image tags with descriptive prompts where a visual genuinely helps:
 ![alt text](prompt:: "Create a detailed [description of what should be shown]")
 
 IMAGE PROMPT RULES:
@@ -1054,8 +1094,25 @@ IMPORTANT: Always display the returned URL to the user.`,
                                     h: { type: 'number' },
                                     a: { type: 'number', description: 'Angle, always 0' },
                                     e: { type: 'string', description: 'Unique element ID' },
-                                    tx: { type: 'string', description: 'Text content' },
-                                    fc: { type: 'array', items: { type: 'string' }, description: 'Fill colors array' }
+                                    tx: { type: 'string', description: 'Text content: the note, the label, the section title' },
+                                    ta: { type: 'string', enum: ['left', 'center', 'right', 'justify'] },
+                                    fs: { type: 'number', description: 'REQUIRED on anything with text. Font size in px: section titles 16-24, note text 12-16, board headings larger. Omit it and every word renders at the same default size.' },
+                                    fcl: { type: 'string', description: 'Font colour, hex - dark text on a light sticky, light on a dark section' },
+                                    fw: { type: 'string', enum: ['normal', 'bold', '200', '300', '600', '900'] },
+                                    fst: { type: 'string', enum: ['normal', 'italic'] },
+                                    td: { type: 'string', enum: ['none', 'underline', 'line-through'] },
+                                    fnt: { type: 'string', description: 'REQUIRED on anything with text. A Google Font family name; keep to one or two across the board.' },
+                                    lh: { type: 'number', description: 'Line height multiplier, 1.2-1.5 keeps notes readable' },
+                                    tp: { type: 'number', description: 'MF_Note2: padding inside the sticky, 8-15' },
+                                    fold: { type: 'boolean', description: 'MF_Note2: the folded-corner effect' },
+                                    fc: { type: 'array', items: { type: 'string' }, description: 'Fill colours [from, to] - sticky colours like ["#fbf4a4","#fbf4a4"], pastel sections' },
+                                    ft: { type: 'string', enum: ['solid', 'linear-vertical', 'linear-horizontal', 'linear-diagonally', 'radial', 'none'] },
+                                    fa: { type: 'number', description: 'Fill opacity 0-1' },
+                                    st: { type: 'string', description: 'Shadow: none | drop-shadow | inner-shadow | glow (a soft drop shadow suits notes)' },
+                                    br: { type: 'array', items: { type: 'number' }, description: 'Corner radii [all, tl, tr, br, bl]' },
+                                    bw: { type: 'array', items: { type: 'number' }, description: 'Border widths [all, top, right, bottom, left]' },
+                                    bt: { type: 'array', items: { type: 'string' }, description: 'Border types [all, top, right, bottom, left]' },
+                                    bc: { type: 'array', items: { type: 'string' }, description: 'Border colours [all, top, right, bottom, left]' }
                                 }
                             }
                         }
@@ -1092,6 +1149,15 @@ IMPORTANT: Always display the returned URL to the user.`,
         // HTML→paintObjects conversion is a custom client flow, so mapToolToGdata returns
         // null (signalled by clientIsHtmlConversion) rather than the generic mapping.
         mcpToolName: 'render_wireframelite',
+        imageSlots: true,
+        imageSlotForm: 'url',
+        imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY.
+- Write each photo/avatar/logo/hero slot as <img src="" data-ai-prompt="what the picture shows" data-img-width="W" data-img-height="H" style="width:Wpx;height:Hpx;object-fit:cover;">, at most 5 per screen.
+- Same boxes, same layout, same text sizes as the screen would have had without them - only the box contents change.
+- ICONS ARE NEVER IMAGES: they stay FontAwesome SVG <img> tags, or you get a photo where an icon belongs.`,
+        imagesOffGuidance: `THIS RENDER HAS NO IMAGERY.
+- Photo/avatar/logo/thumbnail slots are <img src="placeholder" style="width:300px;height:200px;border:1px solid #ccc;"> at the intended size; full-bleed hero/banner backgrounds are a coloured <div>.
+- Emit NO data-ai-prompt attributes at all.`,
         mcpDescription: `Convert HTML to an editable UI wireframe inside a MockFlow IdeaBoard wireframe frame.
 
 Provide a complete HTML document with inline CSS styles. The HTML is rendered in a real browser and converted element by element into editable MockFlow components.
@@ -1137,11 +1203,12 @@ STYLING / FIDELITY:
 
 ICONS (REQUIRED for any real UI screen — nav items, search, bell, chevrons, avatars, action buttons):
 - Every icon MUST be an <img> whose src is a FontAwesome SVG URL: https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/svgs/solid/{name}.svg — these are mapped onto MockFlow's real icon library, so they become editable icon components.
-- Colour: append it as a hex fragment when the icon needs a specific colour (.../solid/home.svg#374151). Omit it and the icon takes the colour of the text it sits with, so an icon inside a styled button, nav row or card is coloured for you — only state a colour when you want one that differs from its surrounding text.
+- Colour: ALWAYS append it as a hex fragment (.../solid/home.svg#374151), chosen to contrast the icon's IMMEDIATE background — a light colour for an icon on a dark sidebar, header, card or filled button, a dark one on a light surface. An icon carries no colour of its own, so state it here the same way you decide whether text is readable there. Leave it off only where the icon should simply match the text beside it.
+- Naming: the board's icon library is FontAwesome 5, so where v6 renamed an icon, the v5 name resolves most precisely (home, search, cog, file-alt, users, tachometer-alt). A v6-only name is matched as closely as the library allows.
 - Give EVERY icon <img> an explicit inline size: style="width:20px;height:20px;object-fit:contain;". An unsized SVG <img> falls back to its natural size (hundreds of px) and wrecks the layout. Typical icon sizes are 16-24px.
 - Any other way of putting an icon on the screen fails: inline <svg> code, icon fonts (<i class="fas fa-home">), and text/unicode/emoji characters used as glyphs all convert to nothing or to stray text, leaving holes where the icons should be. Every icon slot on the screen — including inside nav rows, buttons, list rows and stat cards — takes the <img> form above.
 
-IMAGES: no AI or stock imagery is generated for this tool. For photo/avatar/logo/thumbnail slots use <img src="placeholder" style="width:300px;height:200px;border:1px solid #ccc;"> with the intended dimensions (a border that suits the surrounding background); for full-bleed hero/banner backgrounds use a coloured <div> instead.
+IMAGES: by default no imagery is generated - for photo/avatar/logo/thumbnail slots use <img src="placeholder" style="width:300px;height:200px;border:1px solid #ccc;"> with the intended dimensions (a border that suits the surrounding background), and for full-bleed hero/banner backgrounds use a coloured <div> instead. ONLY when you have been told this render includes images, write those photo slots as <img src="" data-ai-prompt="what the picture shows" data-img-width="W" data-img-height="H" style="width:Wpx;height:Hpx;object-fit:cover;"> instead (max 5 per screen). Icons are never images: they always stay FontAwesome SVG <img> tags.
 
 CHARTS (use them whenever the screen is a dashboard, analytics, reporting or metrics screen — they become real, editable MockFlow chart components carrying their data and colours):
 1. Add Chart.js v3 in <head>: <script src="https://d20hhedk3h2l88.cloudfront.net/genai/chart.min.js"></script>
@@ -1234,6 +1301,13 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientPrompt: 'wireframe from HTML',
         clientPromptField: null,
         clientIsHtmlConversion: true,
+        // The frame ADOPTS a conversion as its own content (sendGenText takes the
+        // paintObjects and replaces its children), so this HTML tool can also fill the
+        // component a user is editing in place - QuickSettings Generate / Modify with AI,
+        // and the chat modify tool. Without this flag those turns find no local tool at
+        // all and every one of them falls back to MockFlow AI. Consumed by the MockFlow
+        // Bridge (agentManager._toolsForComptype + boardHub.drawHtml).
+        clientHtmlFillsInPlace: true,
         clientTransform: null,
         recipeOutputKeys: ['wireframe']
     },
@@ -1245,11 +1319,18 @@ IMPORTANT: Always display the returned URL to the user.`,
         // is an HTML-input tool the backend processes into a stored action, so mapToolToGdata returns
         // null (clientIsHtmlConversion) and the client draws it via the 'prototypelite' action transform.
         mcpToolName: 'render_prototypelite',
+        imageSlots: true,
+        imageSlotForm: 'url',
+        imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY.
+- Write photo and hero slots as <img src="" data-ai-prompt="what the picture shows" data-img-width="W" data-img-height="H" style="width:Wpx;height:Hpx;object-fit:cover;">, only a handful across the whole flow.
+- The screen structure and text sizes stay exactly as they would have been without them.
+- Icons are not images: keep them as icon markup.`,
+        imagesOffGuidance: `THIS RENDER HAS NO IMAGERY - give photo/avatar/thumbnail slots a plain coloured or bordered box at the intended size, so the screens read as a working prototype rather than a broken page. Emit NO data-ai-prompt attributes.`,
         mcpDescription: `Turn a self-contained interactive prototype YOU generate into an editable MockFlow IdeaBoard component, and get back the board URL.
 
 You generate the complete prototype as a single self-contained HTML document and pass it as "html". MockFlow stores it and places it on a new board as a runnable, clickable prototype — no AI credits are used, so YOU make every design decision here: device, screens, layout and styling. The output must match what the in-app AI generator would produce.
 
-USE THIS WHEN the user wants a working, clickable, multi-screen prototype or interactive demo they can navigate. For a single static wireframe frame, use render_wireframelite instead.
+USE THIS WHEN the user wants a working, clickable, multi-screen prototype or interactive demo they can navigate. For a single static wireframe frame, use render_wireframelite instead. ONE call covers the WHOLE flow: a prototype is a SINGLE component that wires all of its screens together, so a multi-screen prototype request is this one tool, never a batch of one item per screen and never a board plan.
 
 DEVICE & VIEWPORT (decide this FIRST — it drives the entire layout):
 - Set deviceType to match what the user asked for: a mobile/phone app → "mobile", a tablet/iPad app → "tablet", a web/desktop app → "desktop". Honor an explicit device word in the request (e.g. "CRM mobile app" → "mobile"). Default "mobile".
@@ -1257,7 +1338,7 @@ DEVICE & VIEWPORT (decide this FIRST — it drives the entire layout):
 - Render each screen edge-to-edge filling the viewport (html, body, and your root at width/height 100%). Do NOT draw a device bezel, status bar, notch, or home indicator — the board already frames the prototype in the chosen device, so any bezel you draw just gets clipped.
 
 HTML CONTRACT (required — the built-in player relies on it):
-- One self-contained index.html with inline CSS/JS. No external stylesheets, fonts, or scripts, and no network/backend calls; embed images as data: URIs or use absolute https image URLs.
+- One self-contained index.html with inline CSS/JS. No external stylesheets, fonts, or scripts, and no network/backend calls. By DEFAULT the flow carries no generated imagery: give photo/avatar/thumbnail slots a plain coloured or bordered box at the intended size, so the screens read as a working prototype rather than a broken page. ONLY when you have been told this render includes images, write those same slots as <img src="" data-ai-prompt="what the picture shows" data-img-width="W" data-img-height="H"> instead - same boxes, same layout, real pictures in them - and keep the screen structure and text sizes exactly as they would have been either way.
 - A prototype is a navigable FLOW that ALWAYS spans MULTIPLE distinct screens. NEVER emit one long single-page / scrolling document and NEVER collapse the flow into a single screen — the player shows exactly ONE screen at a time, so a single-section prototype just renders as one endless page. Wire the screens together with navigation instead.
 - Put EVERY screen in the document as a SEPARATE top-level element with a unique id, e.g. <section data-screen="login">…</section>, <section data-screen="home">…</section>. Mark the entry screen with the attribute data-screen-start. Build each screen fully with its own real content — never an empty or placeholder screen.
 - Navigate between screens by adding data-nav="targetScreenId" to a clickable element (the EXACT id of a screen you defined). Use data-nav="back" for a back control. A built-in runtime shows/hides the right screen and keeps history — write NO screen-switching code.
@@ -1300,7 +1381,116 @@ IMPORTANT: Always display the returned board URL to the user.`,
         clientPrompt: 'prototype from HTML',
         clientPromptField: null,
         clientTransform: null,
-        recipeOutputKeys: ['prototype']
+        recipeOutputKeys: ['prototype'],
+        // CREATING a prototype needs nothing read back - the agent writes the whole
+        // document - so it fills the frame the user is making it in, including the
+        // "Convert to prototype" button on selected wireframes (the editor puts those
+        // wireframes into the prompt). MODIFYING one is the opposite: the current HTML
+        // lives in PRIVATE S3 where only the server can read it, so a modify is left out
+        // here and stays on MockFlow AI. The one scoped exception is the next entry -
+        // the editor already holds the picked element, so nothing has to be read back.
+        clientHtmlFillsInPlace: true,
+        fillModes: ['createai', 'createsimilar', 'generate'],
+    },
+    {
+        // Scoped edit of a running prototype, performed by the user's OWN agent: the element
+        // they picked, one whole screen, or adding a screen to the flow.
+        //
+        // The agent never reads the stored prototype (it is in PRIVATE S3). The editor hands
+        // it the editable slice - the picked element or screen plus the shared style/script
+        // nodes, each tagged with its data-mfid - either from the runtime (an element pick)
+        // or by asking MockFlow for it (/call/api/prototype/scopeparts, read-only). The agent
+        // returns the replacement node(s), and MockFlow splices them in and stores a new
+        // version WITHOUT running a model (the same validation and store path MockFlow AI's
+        // own scoped modify uses), so these edits cost no AI credits.
+        //
+        // A WHOLE-prototype rewrite is deliberately not here: that one needs the entire
+        // document and stays with MockFlow AI.
+        //
+        // bridgeOnly: it edits a component open in a connected editor tab, using state only
+        // that tab has. fillModes: an in-place MODIFY turn only - creating a prototype is
+        // render_prototypelite's job.
+        mcpToolName: 'edit_prototype',
+        bridgeOnly: true,
+        fillModes: ['modifyai'],
+        mcpDescription: `Apply the user's requested change to the part of their MockFlow prototype they are editing - the element they picked, the screen they are on, or a new screen added to the flow.
+
+The editor gives you the CURRENT HTML of each editable part, tagged with a data-mfid: the element or screen being edited, plus the prototype's shared <style> and <script> nodes. Return the FULL updated HTML of ONLY the parts you actually change.
+
+SEND ONLY WHAT CHANGES. "parts" replaces a whole node, so use it only when the node's own content really is different. For the common small changes there are surgical fields that need no retransmission - prefer them every time, because re-sending a screen you are not changing is slow and risks losing something that was already right:
+- "navFrom": wire existing controls to a screen - [{ "mfid": "<the control's data-mfid>", "to": "<screen id>" }]. This sets data-nav on that control and changes nothing else.
+- "appendStyle": CSS to add to the prototype's existing stylesheet.
+- "appendScript": JS to add to the prototype's existing script.
+
+ADDING A SCREEN: put the new screen's complete HTML in "newScreen" as a single <section data-screen="a-new-unique-id"> … </section>. Build it the SAME WAY the prototype's existing screens are built, not merely to look like them: reuse their structure and their existing classes as they are - the wrapper elements, the regions that repeat across screens, and the sizing and overflow rules they depend on - and write only the content specific to this screen. Anything re-created by hand instead of reused behaves differently from the rest of the app even when it looks right. Never reuse an existing screen id. Then WIRE IT, or nothing can reach it:
+- Link it from the control a user would actually press. If the prototype's nav/menu/sidebar already has an item for what this screen is, that item is the one to wire - use "navFrom" with its data-mfid. Only if nothing fits should you wire some other button.
+- Give the new screen its own way back (data-nav to the screen it came from) and mark its matching nav item as current, the way the other screens do.
+- Wire every control on the new screen that a person would expect to lead somewhere; anything else must act in place.
+
+RULES (an edit that breaks one of these is rejected and nothing changes):
+- Only ever return a data-mfid that was given to you. Never invent one.
+- Return each changed node WHOLE, from its opening tag to its closing tag - not a fragment, not a diff.
+- Keep each node's root tag and its data-mfid / data-screen / data-nav attributes exactly as they were. They are what wires the prototype together.
+- Change only what the user asked for. Everything else in the node must come back unchanged.
+- Never remove a screen, never change an existing screen's id, and never redefine window.MFProto. The only way to add one is "newScreen" above.
+- If the change needs shared CSS, also return the <style> node; if it needs JS, also return the <script> node.
+- Keep every behaviour in-page: no window.alert / confirm / prompt, no real backend or third-party calls, no touching the parent window, cookies or storage.
+- For a NET-NEW icon, match the prototype's existing icon pattern: <i class="ico" style="--i:url(/call/api/iconresolve/<name>.svg)"></i> - never a CDN URL, an icon font class, or an inline <svg>.
+- Output the tool call only. No markdown fences, no commentary.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                parts: {
+                    type: 'array',
+                    description: 'One entry per node you changed. Omit nodes you did not change.',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            mfid: { type: 'string', description: 'The data-mfid of the node being replaced. Must be one the editor gave you.' },
+                            html: { type: 'string', description: 'The complete updated HTML of that node, same root tag and same data-mfid.' }
+                        },
+                        required: ['mfid', 'html']
+                    }
+                },
+                newScreen: {
+                    type: 'string',
+                    description: 'Only when adding a screen: the complete HTML of ONE new <section data-screen="unique-id">, in the prototype\'s existing style. Wire it with "navFrom" - do not re-send the source screen in "parts" just to add a link.'
+                },
+                navFrom: {
+                    type: 'array',
+                    description: 'Point existing controls at a screen without re-sending the node they live in. Use this to wire a new screen from the nav item or button that should lead to it.',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            mfid: { type: 'string', description: 'data-mfid of the control to make clickable.' },
+                            to: { type: 'string', description: 'data-screen id it should navigate to.' }
+                        },
+                        required: ['mfid', 'to']
+                    }
+                },
+                appendStyle: {
+                    type: 'string',
+                    description: 'CSS appended to the prototype\'s existing stylesheet. Use instead of re-sending the whole <style> node.'
+                },
+                appendScript: {
+                    type: 'string',
+                    description: 'JS appended to the prototype\'s existing script. Use instead of re-sending the whole <script> node.'
+                }
+            }
+        },
+
+        // Processed by the connected TAB (like the other HTML tools): it posts the parts to
+        // /call/api/prototype/patchparts with the component's own pointer, gets the new
+        // pointer back, and fills the component in place.
+        clientIsHtmlConversion: true,
+        clientHtmlFillsInPlace: true,
+        clientAitype: 'genprototypelite',
+        clientComp: null,
+        fillsComptype: 'MF_PrototypeLite_ID',
+        clientDataField: null,
+        clientPrompt: 'prototype element edit',
+        clientPromptField: null,
+        clientTransform: null
     },
     {
         mcpToolName: 'render_customerjourney',
@@ -1771,14 +1961,36 @@ IMPORTANT: Always display the returned URL to the user.`,
                 },
                 views: {
                     type: 'array',
-                    description: 'Dashboard tiles. See the description for every view type and its fields. Each view has a "type" and optional "span" (1..columns) and "tall".',
+                    description: 'Dashboard tiles. CRITICAL: each view type binds to its data through a SPECIFIC field, and a view with the wrong field (or no binding field) renders as 0. Use exactly: metric/sparkline/progress/gauge -> "value" (a single id); progress also "target"; gauge also "min"/"max"/"thresholds". table -> "columns" (array of ids). funnel -> "stages". line/area/bar/pie/doughnut/compare/radar -> "series" (array of ids). scatter -> "x" and "y". sensitivity -> "parameter" and "metric". distribution -> "metric". mapregions -> "regions"; mappoints -> "points". text -> "content" (and optional "variant"). Do NOT put a single value under "series", and never leave a view without its binding field.',
                     items: {
                         type: 'object',
                         properties: {
                             type: { type: 'string', enum: ['line', 'area', 'bar', 'metric', 'sparkline', 'progress', 'gauge', 'pie', 'doughnut', 'compare', 'radar', 'scatter', 'table', 'funnel', 'sensitivity', 'distribution', 'mapregions', 'mappoints', 'text'] },
                             title: { type: 'string' },
                             span: { type: 'number', description: '1..columns grid width' },
-                            tall: { type: 'boolean' }
+                            tall: { type: 'boolean' },
+                            value: { type: 'string', description: 'metric/sparkline/progress/gauge: the SINGLE state/derived/parameter id this tile shows' },
+                            series: { type: 'array', description: 'line/area/bar/pie/doughnut/compare/radar: ids to plot; an entry is an id string or { id, as: "line"|"bar" }', items: {} },
+                            columns: { type: 'array', description: 'table: the ids to show one column each', items: { type: 'string' } },
+                            stages: { type: 'array', description: 'funnel: [{ label, value }] stage bars', items: { type: 'object' } },
+                            target: { description: 'progress: the goal, a number or another id' },
+                            min: { type: 'number', description: 'gauge: dial minimum' },
+                            max: { type: 'number', description: 'gauge: dial maximum' },
+                            thresholds: { type: 'array', description: 'gauge: [greenUpTo, amberUpTo] in the value\'s units', items: { type: 'number' } },
+                            stacked: { type: 'boolean', description: 'line/area/bar: stack the series' },
+                            horizontal: { type: 'boolean', description: 'compare: horizontal bars' },
+                            x: { type: 'string', description: 'scatter: the x-axis series id' },
+                            y: { type: 'string', description: 'scatter: the y-axis series id' },
+                            parameter: { type: 'string', description: 'sensitivity: the parameter id to sweep' },
+                            metric: { type: 'string', description: 'sensitivity/distribution: the id whose final value is measured' },
+                            samples: { type: 'number', description: 'sensitivity: number of sweep points' },
+                            runs: { type: 'number', description: 'distribution: number of seeded runs' },
+                            regions: { type: 'array', description: 'mapregions: [{ region, value }]', items: { type: 'object' } },
+                            points: { type: 'array', description: 'mappoints: [{ label, lat, lng, value }]', items: { type: 'object' } },
+                            level: { type: 'string', description: 'mapregions: "country" | "state"' },
+                            ramp: { type: 'string', description: 'mapregions: color ramp name' },
+                            content: { type: 'string', description: 'text: the copy to show' },
+                            variant: { type: 'string', description: 'text: "heading" | "note"' }
                         },
                         required: ['type']
                     }
@@ -1795,7 +2007,151 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientDataField: 'generatedtext',
         clientPrompt: 'datasimulator',
         clientPromptField: null,
-        clientTransform: null,
+        // The generic path would ship the agent's raw args straight to the client SimEngine.
+        // gendatasimulator.js instead validates and normalizes the spec before it renders, so
+        // port both here: an invalid spec is THROWN (mcpEndpoint's outer catch returns an _err the
+        // agent can fix and retry — the bridge's equivalent of the server's regenerate-on-invalid
+        // loop), and a valid one is cleaned exactly as the server cleans it. Kept in sync with
+        // gendatasimulator.js invalidSimReason() + stripUnusedDerived() — edit both together.
+        clientTransform: function(args) {
+            var spec = args || {};
+
+            // --- validate (mirror invalidSimReason) ---
+            var reason = (function() {
+                if (!spec.state || !Array.isArray(spec.state) || spec.state.length === 0) return "missing or empty state array";
+                if (!spec.rules || !Array.isArray(spec.rules)) return "missing rules array";
+                if (!spec.views || !Array.isArray(spec.views) || spec.views.length === 0) return "missing or empty views array";
+                if (spec.parameters && !Array.isArray(spec.parameters)) return "parameters is not an array";
+
+                var i, s, r, p;
+                for (i = 0; i < spec.state.length; i++) {
+                    s = spec.state[i];
+                    if (!s.id) return "a state entry has no id";
+                    if (!(typeof s.init === 'number' || (typeof s.init === 'string' && s.init.trim() !== ''))) return "state '" + s.id + "' has no numeric or expression init";
+                }
+                for (i = 0; i < spec.rules.length; i++) {
+                    r = spec.rules[i];
+                    if (!r.target || !r.expr || typeof r.expr !== 'string') return "a rule is missing its target or expr";
+                }
+                var params = spec.parameters || [];
+                for (i = 0; i < params.length; i++) {
+                    p = params[i];
+                    if (!p.id || typeof p.value !== 'number') return "parameter '" + (p.id || '?') + "' has no numeric value";
+                }
+
+                // Reserved names and duplicate ids silently corrupt the client run.
+                var reserved = { t:1, step:1, steps:1, rand:1, randn:1, pi:1, e:1, "true":1, "false":1 };
+                var seen = {};
+                var all = params.concat(spec.state).concat(spec.derived || []);
+                for (i = 0; i < all.length; i++) {
+                    var item = all[i];
+                    if (!item.id) return "a parameter, state or derived entry has no id";
+                    if (reserved[item.id]) return "'" + item.id + "' is a reserved name and cannot be an id";
+                    if (seen[item.id]) return "duplicate id '" + item.id + "'";
+                    seen[item.id] = 1;
+                }
+
+                var stateIds = {};
+                for (i = 0; i < spec.state.length; i++) stateIds[spec.state[i].id] = 1;
+                for (i = 0; i < spec.rules.length; i++) {
+                    if (!stateIds[spec.rules[i].target]) return "rule targets '" + spec.rules[i].target + "', which is not a state id";
+                }
+
+                var viewTypes = { line:1, area:1, bar:1, metric:1, sparkline:1, progress:1, gauge:1, pie:1, doughnut:1, compare:1, radar:1, scatter:1, table:1, funnel:1, sensitivity:1, distribution:1, mapregions:1, mappoints:1, text:1 };
+                for (i = 0; i < spec.views.length; i++) {
+                    var v = spec.views[i];
+                    if (!v.type || !viewTypes[v.type]) return "unknown view type '" + (v.type || '?') + "'";
+                }
+                return null;
+            })();
+
+            if (reason) {
+                throw new Error("invalid simulation spec: " + reason
+                    + ". Re-read render_datasimulator's description and call it again with a corrected spec.");
+            }
+
+            // --- repair mis-fielded views ---
+            // The runtime binds value-views (metric/sparkline/progress/gauge) through view.value
+            // and tables through view.columns (SimViews.js), but agents are unreliable about which
+            // field carries the id: some put every binding under "series", some invent "expr", some
+            // omit the binding entirely and only give a title. Any of those renders the tile as 0.
+            // Fill the field the runtime actually reads from whatever the agent did supply, so the
+            // view binds regardless. Non-destructive: only ever fills the correct field when absent,
+            // and only ever binds to an id that actually exists in the model.
+            (function() {
+                var idOf = function(x) {
+                    if (typeof x === 'string') return x;
+                    if (x && typeof x === 'object' && typeof x.id === 'string') return x.id;
+                    return null;
+                };
+                var firstId = function(v) {
+                    if (Array.isArray(v)) { for (var i = 0; i < v.length; i++) { var id = idOf(v[i]); if (id) return id; } return null; }
+                    return idOf(v);
+                };
+                // Every real id in the model — a repaired binding must land on one of these.
+                var knownIds = {};
+                [].concat(spec.parameters || [], spec.state || [], spec.derived || []).forEach(function(it) {
+                    if (it && typeof it.id === 'string') knownIds[it.id] = 1;
+                });
+                var slugify = function(t) {
+                    return String(t).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+                };
+                var valueViews = { metric:1, sparkline:1, progress:1, gauge:1 };
+                for (var i = 0; i < spec.views.length; i++) {
+                    var v = spec.views[i];
+                    if (!v || typeof v !== 'object') continue;
+
+                    if (valueViews[v.type] && (v.value === undefined || v.value === null || v.value === '')) {
+                        // In priority: series / values (id containers), then a bare-id expr, then a
+                        // title whose slug is exactly a known id ("Monthly spend" -> monthly_spend).
+                        var id = firstId(v.series !== undefined ? v.series : (v.values !== undefined ? v.values : v.columns));
+                        if (!id && typeof v.expr === 'string' && knownIds[v.expr.trim()]) id = v.expr.trim();
+                        if (!id && typeof v.title === 'string' && knownIds[slugify(v.title)]) id = slugify(v.title);
+                        if (id) v.value = id;
+                    } else if (v.type === 'table' && (!Array.isArray(v.columns) || v.columns.length === 0)) {
+                        var src = Array.isArray(v.series) ? v.series : (Array.isArray(v.values) ? v.values : null);
+                        if (src) {
+                            var cols = [];
+                            for (var j = 0; j < src.length; j++) { var cid = idOf(src[j]); if (cid) cols.push(cid); }
+                            if (cols.length) v.columns = cols;
+                        }
+                    }
+                }
+            })();
+
+            // --- normalize: drop derived nothing references (mirror stripUnusedDerived) ---
+            if (spec.derived && Array.isArray(spec.derived) && spec.derived.length) {
+                var viewStrings = {};
+                var collect = function(node) {
+                    if (typeof node === 'string') viewStrings[node] = 1;
+                    else if (Array.isArray(node)) node.forEach(collect);
+                    else if (node && typeof node === 'object') { for (var k in node) collect(node[k]); }
+                };
+                collect(spec.views);
+
+                var esc = function(id) { return id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+                // Iterate to a fixpoint so chains fall too (a kept only by b, b unused).
+                var removed = true;
+                while (removed) {
+                    removed = false;
+                    for (var di = spec.derived.length - 1; di >= 0; di--) {
+                        var d = spec.derived[di];
+                        if (!d || !d.id || viewStrings[d.id]) continue;
+
+                        var exprs = [];
+                        (spec.rules || []).forEach(function(rr) { if (typeof rr.expr === 'string') exprs.push(rr.expr); });
+                        (spec.state || []).forEach(function(ss) { if (typeof ss.init === 'string') exprs.push(ss.init); });
+                        spec.derived.forEach(function(o, j) { if (j !== di && typeof o.expr === 'string') exprs.push(o.expr); });
+
+                        var re = new RegExp('\\b' + esc(d.id) + '\\b');
+                        var used = exprs.some(function(e) { return re.test(e); });
+                        if (!used) { spec.derived.splice(di, 1); removed = true; }
+                    }
+                }
+            }
+
+            return JSON.stringify(spec);
+        },
         recipeOutputKeys: ['simulation']
     },
     {
@@ -1891,6 +2247,12 @@ IMPORTANT: Always display the returned URL to the user.`,
     },
     {
         mcpToolName: 'render_storyboard',
+        imageSlots: true,
+        imageSlotForm: 'imageID',
+        imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY - every frame gets its shot.
+- Set coverType to "image" and coverFileID to "mfimg::" followed by a description of that frame's shot (no text, letters or numbers in the picture).
+- Describe every frame in the SAME art style, so the sequence reads as one piece of film.`,
+        imagesOffGuidance: `THIS RENDER HAS NO IMAGERY - coverType and coverFileID are null on every frame, and the written description carries the shot.`,
         mcpDescription: `Create a film/video storyboard with scenes and frames for visualizing stories, movie sequences, commercials, and video content.
 
 STRUCTURE RULES:
@@ -1908,11 +2270,9 @@ FRAME PROPERTIES:
   - Action and dialogue
   - Lighting and mood
   - Visual elements and composition
-- coverType: null (images generated separately if requested)
-- coverFileID: null
+- coverType / coverFileID: null, UNLESS you have been told this render includes images - then coverType is "image" and coverFileID is the image slot token for that frame's shot
 - metadata: Object with field1-field4 for custom metadata (empty strings)
 - comments: Empty array []
-- aiGenerated: true
 - createdAt: ISO date string
 
 SCENE PROPERTIES:
@@ -1961,8 +2321,8 @@ IMPORTANT: Always display the returned URL to the user.`,
                                         sequence: { type: 'integer', description: 'Frame sequence number starting from 1' },
                                         title: { type: 'string', description: 'Short frame title' },
                                         description: { type: 'string', description: 'Detailed cinematic description with camera angles, action, lighting, mood' },
-                                        coverType: { type: 'string', description: 'null' },
-                                        coverFileID: { type: 'string', description: 'null' },
+                                        coverType: { type: 'string', description: 'null, or "image" when this render includes images' },
+                                        coverFileID: { type: 'string', description: 'null, or when this render includes images: "mfimg::" followed by a description of this frame\'s shot (no text, letters or numbers in it)' },
                                         metadata: {
                                             type: 'object',
                                             properties: {
@@ -1973,7 +2333,6 @@ IMPORTANT: Always display the returned URL to the user.`,
                                             }
                                         },
                                         comments: { type: 'array', items: { type: 'object' } },
-                                        aiGenerated: { type: 'boolean', description: 'true' },
                                         createdAt: { type: 'string', description: 'ISO date string' }
                                     },
                                     required: ['id', 'sequence', 'title', 'description']
@@ -2326,6 +2685,12 @@ IMPORTANT: Always display the returned URL to the user.`,
         mcpToolName: 'render_timeline',
         // Real-world/current data component: the local agent may web-research first.
         webResearch: true,
+        imageSlots: true,
+        imageSlotForm: 'imageID',
+        imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY - each event gets a picture.
+- Set coverType to "image" and coverFileID to "mfimg::" followed by a description of that event's picture (no text, letters or numbers in it).
+- Keep one consistent visual style across the events.`,
+        imagesOffGuidance: `THIS RENDER HAS NO IMAGERY - coverType and coverFileID are null on every event.`,
         mcpDescription: `Create a timeline for visualizing chronological events, milestones, history, evolution, or sequential stages. Use this for simple chronological visualization of events or milestones WITHOUT task management. For project plans with tasks, durations, progress, and assignees, use render_gantt instead.
 
 FIRST, decide whether the topic is best represented with dates or labels:
@@ -2349,8 +2714,7 @@ EVENT PROPERTIES:
 - description: Detailed description suitable for understanding the event
 - date: ISO date string (real date for date mode, placeholder for label mode)
 - labelValue: Empty string for date mode, meaningful label for label mode (e.g., "Stage 1", "Egg", "3300 BCE")
-- coverType: null
-- coverFileID: null
+- coverType / coverFileID: null, UNLESS you have been told this render includes images - then coverType is "image" and coverFileID is the image slot token for that event's picture
 
 SETTINGS:
 - boardTitle: Meaningful title based on topic
@@ -2363,7 +2727,6 @@ GUIDELINES:
 - In date mode: events must have realistic dates sorted chronologically, labelValue should be empty string
 - In label mode: labelValue must be a short meaningful label, date can be a placeholder
 - Each event must have: id, title, description, date, labelValue, coverType, coverFileID
-- coverType and coverFileID should always be null
 - Event IDs should be like: "evt_1", "evt_2", etc.
 - Each event should have a meaningful title and detailed description
 
@@ -2382,8 +2745,8 @@ IMPORTANT: Always display the returned URL to the user.`,
                             description: { type: 'string', description: 'Detailed event description' },
                             date: { type: 'string', description: 'ISO date string (real date for date mode, placeholder for label mode)' },
                             labelValue: { type: 'string', description: 'Empty string for date mode, meaningful label for label mode (e.g., "Stage 1", "3300 BCE")' },
-                            coverType: { type: 'string', description: 'null' },
-                            coverFileID: { type: 'string', description: 'null' }
+                            coverType: { type: 'string', description: 'null, or "image" when this render includes images' },
+                            coverFileID: { type: 'string', description: 'null, or when this render includes images: "mfimg::" followed by a description of this event\'s picture (no text, letters or numbers in it)' }
                         },
                         required: ['id', 'title', 'description', 'date', 'labelValue']
                     }
@@ -2461,6 +2824,12 @@ CONTENT GUIDELINES:
     },
     {
         mcpToolName: 'render_poll',
+        imageSlots: true,
+        imageSlotForm: 'url',
+        imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY - illustrate the options.
+- Include "optionImages" with one entry per option, index-aligned with options: "mfimg::" followed by a description of that choice.
+- ALL options get one or none do - a half-illustrated poll reads as broken.`,
+        imagesOffGuidance: `THIS RENDER HAS NO IMAGERY - omit "optionImages" entirely; the options carry themselves as words.`,
         mcpDescription: `Create a poll / voting question where users pick from predefined options. Use this for polls, surveys, opinion votes, multiple-choice questions, audience polls, feedback forms, or quick votes. For collecting AND upvoting open-ended ideas use render_upvoteideas; for a random picker use render_spinningwheel.
 
 STRUCTURE RULES:
@@ -2470,7 +2839,8 @@ STRUCTURE RULES:
 - Consider an "Other" or "Not sure" option when appropriate
 
 OPTIONAL IMAGES:
-- Only include "optionImages" if you have real image URLs (one per option, index-aligned to options). Omit this field entirely for a normal text poll - do not fabricate image URLs.`,
+- By DEFAULT this is a text poll: omit "optionImages" entirely. The options carry themselves as words.
+- ONLY when you have been told this render includes images (or you have real image URLs to use), include "optionImages" with one entry per option, index-aligned with options - every option gets one or none get one, since a half-illustrated poll reads as broken. Never fabricate an image URL.`,
         mcpInputSchema: {
             type: 'object',
             properties: {
@@ -2485,7 +2855,7 @@ OPTIONAL IMAGES:
                 },
                 optionImages: {
                     type: 'array',
-                    description: 'OPTIONAL. Real image URLs, one per option, index-aligned with options. Omit for a text poll.',
+                    description: 'OPTIONAL, index-aligned with options. When this render includes images, each entry is "mfimg::" followed by a description of that option\'s picture (no text, letters or numbers in it); otherwise a real image URL. Omit for a text poll.',
                     items: { type: 'string' }
                 }
             },
@@ -2576,12 +2946,25 @@ CONTENT GUIDELINES:
     },
     {
         mcpToolName: 'render_designframe',
-        mcpDescription: `Create an editable graphic/marketing DESIGN inside a MockFlow IdeaBoard design frame (posters, flyers, banners, social posts, business cards, brand/slide layouts). For UI screens/wireframes use render_wireframelite; for brainstorming/strategy canvases use render_whiteboard.
+        // Plan-picker badge join key, and the human word for this component in the
+        // image ask + re-render prompt ("design", not "designframe").
+        planUIType: 'design',
+        imageSlots: true,
+        imageSlotForm: 'imageID',
+        imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY - let photography anchor the layout.
+- Prefer one dominant hero or product image with the type set over it or beside it, rather than several small pictures scattered about.
+- Give the imagery its own area and keep the headline and body sizes as they are. If it does not fit, ENLARGE THE CANVAS - never shrink the type to make room for a picture.
+- Text over a photo needs contrast: put a scrim block behind it, or set the type on a colour field beside the image.
+- An image is an MF_ImageComp whose "img" is "mfimg::" followed by a plain description of the picture (no text, letters or numbers in it).`,
+        imagesOffGuidance: `THIS RENDER HAS NO IMAGERY - colour, shape and type carry the piece.
+- A full-bleed colour field, a bold type lockup or a geometric composition does the work the photograph would have done.
+- Emit NO MF_ImageComp at all, and never leave an empty box where a photo would have gone.`,
+        mcpDescription: `Create an editable graphic/marketing DESIGN inside a MockFlow IdeaBoard design frame (posters, flyers, banners, social posts, business cards, brand/slide layouts). For UI screens/wireframes use render_wireframelite; for brainstorming/strategy canvases use render_whiteboard. NOT a way to make a picture: this composes a multi-element design out of editable shapes and text, so "an image/photo/illustration of X" is render_image, not this tool, even though a design can contain imagery.
 
 The design is a COMPRESSED component layout: an object { "components": { "c": [ ...components ] } } where each component uses short keys. Author real, positioned editable components.
 
 REQUIRED KEYS PER COMPONENT: t (type), x, y, w, h, a (angle, 0), e (unique id).
-COMPONENT TYPES: MF_Section / MF_Rectangle2 (color blocks, cards, background container - the full-bleed background block should be first), MF_Text (headings, body, labels: tx text, ta align, fs size, fcl color, fw weight), MF_Ellipse2 (circles/dots). Do NOT use MF_ImageComp (no image URLs available).
+COMPONENT TYPES: MF_Section / MF_Rectangle2 (color blocks, cards, background container - the full-bleed background block should be first), MF_Text (headings, body, labels: tx text, ta align, fs size, fcl color, fw weight), MF_Ellipse2 (circles/dots), MF_ImageComp (photos, when this render includes imagery - you are told which mode you are in).
 STYLE KEYS: fc (fill colors array e.g. ["#2563eb","#2563eb"]), ft "solid", tx (text), fcl (font color), fs (font size), fw ("bold"/"normal"), ta ("left"/"center"/"right"), fnt "sourcesanspro".
 
 GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
@@ -2590,6 +2973,7 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
 - Do NOT overlap components unless the overlap is deliberate (text sitting on its own background block). Plan a grid or column layout before emitting JSON and keep 10-20px between neighbours.
 - SIZE TEXT BOXES TO THEIR CONTENT. Text that does not fit its w/h is auto-shrunk on the board (down to 5px), so a heading in an undersized box renders unreadably small. Budget about fs * 1.6 of height per line of text and enough width for the longest line plus padding.
 - Font sizes: headlines 32-72, subheads 20-32, body 14-18, captions 10-14.
+- SET fs AND fnt ON EVERY COMPONENT THAT HAS TEXT. Without them the piece renders at one default size in one default face, which reads as flat and unfinished. Vary weight and size to build the hierarchy.
 - Set border width (bw) to 0 on any component that touches a canvas edge.`,
         mcpInputSchema: {
             type: 'object',
@@ -2600,20 +2984,38 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
                 },
                 components: {
                     type: 'object',
-                    description: "Compressed design layout with 'c' array of components (MF_Section, MF_Rectangle2, MF_Text, MF_Ellipse2).",
+                    description: "Compressed design layout with 'c' array of components (MF_Section, MF_Rectangle2, MF_Text, MF_Ellipse2, and MF_ImageComp when images were requested).",
                     properties: {
                         c: {
                             type: 'array',
                             items: {
                                 type: 'object',
                                 properties: {
-                                    t: { type: 'string', description: 'Component type (MF_Section, MF_Rectangle2, MF_Text, MF_Ellipse2)' },
+                                    t: { type: 'string', description: 'Component type (MF_Section, MF_Rectangle2, MF_Text, MF_Ellipse2, MF_ImageComp)' },
                                     x: { type: 'number' }, y: { type: 'number' },
                                     w: { type: 'number' }, h: { type: 'number' },
                                     a: { type: 'number', description: 'Angle, always 0' },
                                     e: { type: 'string', description: 'Unique element ID' },
-                                    tx: { type: 'string', description: 'Text content (MF_Text)' },
-                                    fc: { type: 'array', items: { type: 'string' }, description: 'Fill colors array' }
+                                    tx: { type: 'string' },
+                                    ta: { type: 'string', enum: ['left', 'center', 'right', 'justify'], description: 'Text alignment' },
+                                    fs: { type: 'number', description: 'REQUIRED on any component with text. Font size in px, full range 6-500: hero/display 48-120, subtitles 24-36, body 14-18, labels 10-14. Leaving it out renders every word at the same small default.' },
+                                    fcl: { type: 'string', description: 'Font colour, hex. Must contrast with whatever sits behind it.' },
+                                    fw: { type: 'string', enum: ['normal', 'bold', '200', '300', '600', '900'], description: 'Font weight - vary it to build hierarchy' },
+                                    fst: { type: 'string', enum: ['normal', 'italic'] },
+                                    td: { type: 'string', enum: ['none', 'underline', 'line-through'] },
+                                    fnt: { type: 'string', description: 'REQUIRED on any component with text. A Google Font family name chosen for the mood (e.g. "Playfair Display", "Inter", "Bebas Neue"). Omitting it gives every board the same default face.' },
+                                    lh: { type: 'number', description: 'Line height multiplier: tight for headlines (0.8-1.0), looser for body (1.2-1.6)' },
+                                    cs: { type: 'number', description: 'Letter spacing in px, -10 to 100 - useful for display type' },
+                                    pd: { type: 'number', description: 'Padding in px' },
+                                    fc: { type: 'array', items: { type: 'string' }, description: 'Fill colours [from, to] - two hex values (repeat the same one for a flat fill)' },
+                                    ft: { type: 'string', enum: ['solid', 'linear-vertical', 'linear-horizontal', 'linear-diagonally', 'radial', 'none'], description: 'Fill type' },
+                                    fa: { type: 'number', description: 'Fill opacity 0-1' },
+                                    st: { type: 'string', enum: ['none', 'drop-shadow', 'inner-shadow', 'glow'], description: 'Shadow' },
+                                    br: { type: 'array', items: { type: 'number' }, description: 'Corner radii [all, tl, tr, br, bl] in px (MF_Section / MF_Rectangle2)' },
+                                    bw: { type: 'array', items: { type: 'number' }, description: 'Border widths [all, top, right, bottom, left] - use 0 on anything touching a canvas edge' },
+                                    bt: { type: 'array', items: { type: 'string' }, description: 'Border types [all, top, right, bottom, left]: none | solid | dashed | dotted' },
+                                    bc: { type: 'array', items: { type: 'string' }, description: 'Border colours [all, top, right, bottom, left], hex' },
+                                    img: { type: 'string', description: 'MF_ImageComp only, and only when this render includes images: "mfimg::" followed by a description of the picture (no text, letters or numbers in it).' }
                                 },
                                 required: ['t', 'x', 'y', 'w', 'h', 'e']
                             }
@@ -2651,12 +3053,22 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
         // Plan-picker badge join key (AI_REGISTRY multiBoardType) for tools whose
         // comptype join misses (pseudo/fills-many comptypes).
         planUIType: 'moodboard',
-        mcpDescription: `Create a TEXT-ONLY mood/inspiration board inside a MockFlow IdeaBoard mood frame: color palette swatches, typography specimens, and keyword/mood text tiles. NOTE: this tool cannot place photographic imagery - for an image-rich moodboard the in-app AI generator (which generates images server-side) is required.
+        imageSlots: true,
+        imageSlotForm: 'imageID',
+        imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY - compose the board around it.
+- Photo tiles are the dominant element, typically covering a good half of the canvas, with swatches and type arranged in the space between them.
+- Vary their size: one or two large anchor images with smaller supporting tiles reads like a moodboard; a uniform grid of equal squares does not.
+- Keep the typography at the sizes above. If the tiles and the type do not both fit, ENLARGE THE CANVAS - never shrink a text box or a font size to make room for a picture.
+- A tile is an MF_ImageComp whose "img" is "mfimg::" followed by a plain description of the picture (no text, letters or numbers in it). At most 6; use colour blocks for any further visual areas.`,
+        imagesOffGuidance: `THIS RENDER HAS NO IMAGERY - colour and type ARE the board.
+- Carry the whole mood with large colour fields, oversized display words and keyword tiles.
+- Emit NO MF_ImageComp at all. Where a photo would have gone, put a colour field or a type lockup - never a gap or an empty placeholder box.`,
+        mcpDescription: `Create a mood/inspiration board inside a MockFlow IdeaBoard mood frame: color palette swatches, typography specimens, keyword/mood text tiles, and photographic image tiles. NOT a way to make a picture: this composes a whole board of swatches, type and tiles, so "an image/photo of X" is render_image, not this tool, even though a moodboard can contain imagery.
 
-Compressed component layout { "components": { "c": [ ... ] } }. Convey the mood entirely through:
+Compressed component layout { "components": { "c": [ ... ] } }. Convey the mood through:
 - MF_Rectangle2 / MF_Section color-swatch blocks (fc fill array) arranged as a palette.
 - MF_Text typography specimens (large display words) and keyword tiles (fs size, fcl color, fw weight, fnt).
-Do NOT emit MF_ImageComp (no image URLs available).
+- MF_ImageComp photo tiles - ONLY when you have been told this render includes images. By default emit none and carry the whole mood with color and type.
 
 REQUIRED KEYS PER COMPONENT: t, x, y, w, h, a (0), e.
 
@@ -2665,7 +3077,9 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
 - Choose a canvas size and keep EVERY component fully inside it: no part of any component (x, y, x+w, y+h) may fall outside the canvas. Typical sizes: standard moodboard 1200x800, Pinterest style 735x1102, square 1080x1080, portrait 800x1200, collage 1000x1000.
 - NO OVERLAPPING: before placing a component check that its bounding box does not intersect any already-placed one, and leave at least 10px between neighbours. Plan a grid or column layout before emitting JSON.
 - SIZE TEXT BOXES TO THEIR CONTENT. Text that does not fit its w/h is auto-shrunk on the board (down to 5px), so a display word in an undersized box renders unreadably small. Budget about fs * 1.6 of height per line and enough width for the longest line plus padding.
-- Font sizes: hero/display 48-120, subtitles 24-36, body 14-18, labels 10-14.`,
+- Font sizes: hero/display 48-120, subtitles 24-36, body 14-18, labels 10-14.
+- SET fs AND fnt ON EVERY COMPONENT THAT HAS TEXT. They are not optional niceties: a component without them renders at the default size in the default face, which is what a flat, tiny-text board looks like. Vary the sizes hard (a 96px display word next to 12px labels) and pick fonts that carry the mood.
+- MF_ColorCode_ID is the proper palette swatch (selectedColor + showHexCode); use it for colour chips rather than drawing bare rectangles.`,
         mcpInputSchema: {
             type: 'object',
             properties: {
@@ -2675,20 +3089,41 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
                 },
                 components: {
                     type: 'object',
-                    description: "Compressed moodboard layout with 'c' array (MF_Rectangle2/MF_Section color swatches, MF_Text specimens/keywords). No image components.",
+                    description: "Compressed moodboard layout with 'c' array (MF_Rectangle2/MF_Section color swatches, MF_Text specimens/keywords, and MF_ImageComp photo tiles when images were requested).",
                     properties: {
                         c: {
                             type: 'array',
                             items: {
                                 type: 'object',
                                 properties: {
-                                    t: { type: 'string', description: 'MF_Rectangle2, MF_Section, or MF_Text' },
+                                    t: { type: 'string', description: 'MF_Rectangle2, MF_Section, MF_Text, MF_ColorCode_ID, or MF_ImageComp' },
                                     x: { type: 'number' }, y: { type: 'number' },
                                     w: { type: 'number' }, h: { type: 'number' },
                                     a: { type: 'number', description: 'Angle, always 0' },
                                     e: { type: 'string' },
                                     tx: { type: 'string' },
-                                    fc: { type: 'array', items: { type: 'string' } }
+                                    ta: { type: 'string', enum: ['left', 'center', 'right', 'justify'], description: 'Text alignment' },
+                                    fs: { type: 'number', description: 'REQUIRED on any component with text. Font size in px, full range 6-500: hero/display 48-120, subtitles 24-36, body 14-18, labels 10-14. Leaving it out renders every word at the same small default.' },
+                                    fcl: { type: 'string', description: 'Font colour, hex. Must contrast with whatever sits behind it.' },
+                                    fw: { type: 'string', enum: ['normal', 'bold', '200', '300', '600', '900'], description: 'Font weight - vary it to build hierarchy' },
+                                    fst: { type: 'string', enum: ['normal', 'italic'] },
+                                    td: { type: 'string', enum: ['none', 'underline', 'line-through'] },
+                                    fnt: { type: 'string', description: 'REQUIRED on any component with text. A Google Font family name chosen for the mood (e.g. "Playfair Display", "Inter", "Bebas Neue"). Omitting it gives every board the same default face.' },
+                                    lh: { type: 'number', description: 'Line height multiplier: tight for headlines (0.8-1.0), looser for body (1.2-1.6)' },
+                                    cs: { type: 'number', description: 'Letter spacing in px, -10 to 100 - useful for display type' },
+                                    pd: { type: 'number', description: 'Padding in px' },
+                                    fc: { type: 'array', items: { type: 'string' }, description: 'Fill colours [from, to] - two hex values (repeat the same one for a flat fill)' },
+                                    ft: { type: 'string', enum: ['solid', 'linear-vertical', 'linear-horizontal', 'linear-diagonally', 'radial', 'none'], description: 'Fill type' },
+                                    fa: { type: 'number', description: 'Fill opacity 0-1' },
+                                    st: { type: 'string', enum: ['none', 'drop-shadow', 'inner-shadow', 'glow'], description: 'Shadow' },
+                                    br: { type: 'array', items: { type: 'number' }, description: 'Corner radii [all, tl, tr, br, bl] in px (MF_Section / MF_Rectangle2)' },
+                                    bw: { type: 'array', items: { type: 'number' }, description: 'Border widths [all, top, right, bottom, left] - use 0 on anything touching a canvas edge' },
+                                    bt: { type: 'array', items: { type: 'string' }, description: 'Border types [all, top, right, bottom, left]: none | solid | dashed | dotted' },
+                                    bc: { type: 'array', items: { type: 'string' }, description: 'Border colours [all, top, right, bottom, left], hex' },
+                                    selectedColor: { type: 'string', description: 'MF_ColorCode_ID only: the swatch colour, hex' },
+                                    showHexCode: { type: 'boolean', description: 'MF_ColorCode_ID only: print the hex value under the swatch' },
+                                    shapeType: { type: 'string', enum: ['full', 'circle', 'square'], description: 'MF_ColorCode_ID only: swatch shape' },
+                                    img: { type: 'string', description: 'MF_ImageComp only, and only when this render includes images: "mfimg::" followed by a description of the picture (no text, letters or numbers in it).' }
                                 },
                                 required: ['t', 'x', 'y', 'w', 'h', 'e']
                             }
@@ -2761,8 +3196,25 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
                                     w: { type: 'number' }, h: { type: 'number' },
                                     a: { type: 'number', description: 'Angle, always 0' },
                                     e: { type: 'string' },
-                                    tx: { type: 'string' },
-                                    fc: { type: 'array', items: { type: 'string' } }
+                                    tx: { type: 'string', description: 'Text content: the note, the label, the section title' },
+                                    ta: { type: 'string', enum: ['left', 'center', 'right', 'justify'] },
+                                    fs: { type: 'number', description: 'REQUIRED on anything with text. Font size in px: section titles 16-24, note text 12-16, board headings larger. Omit it and every word renders at the same default size.' },
+                                    fcl: { type: 'string', description: 'Font colour, hex - dark text on a light sticky, light on a dark section' },
+                                    fw: { type: 'string', enum: ['normal', 'bold', '200', '300', '600', '900'] },
+                                    fst: { type: 'string', enum: ['normal', 'italic'] },
+                                    td: { type: 'string', enum: ['none', 'underline', 'line-through'] },
+                                    fnt: { type: 'string', description: 'REQUIRED on anything with text. A Google Font family name; keep to one or two across the board.' },
+                                    lh: { type: 'number', description: 'Line height multiplier, 1.2-1.5 keeps notes readable' },
+                                    tp: { type: 'number', description: 'MF_Note2: padding inside the sticky, 8-15' },
+                                    fold: { type: 'boolean', description: 'MF_Note2: the folded-corner effect' },
+                                    fc: { type: 'array', items: { type: 'string' }, description: 'Fill colours [from, to] - sticky colours like ["#fbf4a4","#fbf4a4"], pastel sections' },
+                                    ft: { type: 'string', enum: ['solid', 'linear-vertical', 'linear-horizontal', 'linear-diagonally', 'radial', 'none'] },
+                                    fa: { type: 'number', description: 'Fill opacity 0-1' },
+                                    st: { type: 'string', description: 'Shadow: none | drop-shadow | inner-shadow | glow (a soft drop shadow suits notes)' },
+                                    br: { type: 'array', items: { type: 'number' }, description: 'Corner radii [all, tl, tr, br, bl]' },
+                                    bw: { type: 'array', items: { type: 'number' }, description: 'Border widths [all, top, right, bottom, left]' },
+                                    bt: { type: 'array', items: { type: 'string' }, description: 'Border types [all, top, right, bottom, left]' },
+                                    bc: { type: 'array', items: { type: 'string' }, description: 'Border colours [all, top, right, bottom, left]' }
                                 },
                                 required: ['t', 'x', 'y', 'w', 'h', 'e']
                             }
@@ -2796,6 +3248,124 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
         recipeOutputKeys: []
     },
     // ========================================================================
+    // Media components — the asset IS the component (a picture, a video clip, a
+    // sound, a 3D model). A local text agent cannot produce any of them, so it
+    // writes the PROMPT and MockFlow AI generates the asset in the user's own
+    // browser through the generator that surface already uses, on their credits.
+    //
+    // `clientServerGenerate` is what says so: the tab runs that MockFlow
+    // generator with these args instead of drawing the component itself, exactly
+    // as the AI Prompt Box does for the same output type. `mediaComponent` makes
+    // the user confirm the spend first, since the whole component costs credits.
+    // ========================================================================
+    {
+        mcpToolName: 'render_image',
+        mediaComponent: true,
+        mcpDescription: `Generate a standalone picture - an illustration, photo, artwork, icon or logo - and place it on the board as an image component. Use this whenever the user asks for an image/picture/photo/illustration of something.
+
+NOT for a design, poster or social post laid out from shapes and text (render_designframe), a UI screen (render_wireframelite), or a mood/inspiration board (render_moodframe) - those compose many components and can contain imagery, but they are not a picture.
+
+The picture is generated by MockFlow AI in the user's browser, not by you: write a vivid, self-contained prompt describing the subject, composition, lighting and art style, and call this once. The user confirms the spend before it runs, and the image appears on their board when it is ready - never output a URL, and do not wait for one.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                prompt: {
+                    type: 'string',
+                    description: 'What the picture shows: subject, composition, lighting and art style, in one self-contained sentence or two. Avoid asking for text, letters or numbers inside the image.'
+                }
+            },
+            required: ['prompt']
+        },
+        clientServerGenerate: true,
+        mediaComptype: 'MF_ImageComp',
+        clientAitype: 'genideaboard',
+        clientToComp: 'Image',
+        clientPromptPrefix: 'Generate an image: ',
+        // The image component is filled from a STORED asset id, so the generator
+        // must upload rather than hand back a temporary url (genimage.js). The
+        // in-app callers get that from fromconvert; this one has no source
+        // component to convert from, so it asks for it directly.
+        clientGenExtra: { persistimage: true },
+        clientComp: null,
+        recipeOutputKeys: []
+    },
+    {
+        mcpToolName: 'render_video',
+        mediaComponent: true,
+        mcpDescription: `Generate a short video clip - animation, motion graphics, cinematic or any moving content - and place it on the board as a video player component.
+
+NOT for a shot-by-shot plan of a video (render_storyboard) and NOT for the look and feel of one (render_moodframe).
+
+The clip is generated by MockFlow AI in the user's browser, not by you: write a vivid, self-contained prompt describing the scene, motion, camera and style, and call this once. Video is one of the most expensive things MockFlow generates, so the user confirms the spend before it runs; the clip appears on their board when it is ready - never output a URL, and do not wait for one.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                prompt: {
+                    type: 'string',
+                    description: 'What happens in the clip: scene, subject, motion, camera movement and visual style, in one self-contained description.'
+                }
+            },
+            required: ['prompt']
+        },
+        clientServerGenerate: true,
+        mediaComptype: 'MF_VideoPlayer_ID',
+        clientAitype: 'genvideo',
+        clientToComp: 'MF_VideoPlayer_ID',
+        clientComp: null,
+        recipeOutputKeys: []
+    },
+    {
+        mcpToolName: 'render_audio',
+        mediaComponent: true,
+        mcpDescription: `Generate sound to listen to - music, a sound effect, speech, voiceover, narration or a jingle - and place it on the board as an audio player component.
+
+NOT for a UI mockup of a music or podcast app (render_wireframelite), and NOT for a written script (render_markdown).
+
+The audio is generated by MockFlow AI in the user's browser, not by you: write a self-contained prompt describing the sound, mood, instruments or voice, and for speech include the exact words to be spoken. Call this once. The user confirms the spend before it runs, and the clip appears on their board when it is ready - never output a URL, and do not wait for one.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                prompt: {
+                    type: 'string',
+                    description: 'What the audio is: music style, mood and instruments, or for speech the exact words plus the voice and delivery.'
+                }
+            },
+            required: ['prompt']
+        },
+        clientServerGenerate: true,
+        mediaComptype: 'MF_AudioPlayer_ID',
+        clientAitype: 'genaudio',
+        clientToComp: 'MF_AudioPlayer_ID',
+        clientComp: null,
+        recipeOutputKeys: []
+    },
+    {
+        mcpToolName: 'render_3dmodel',
+        mediaComponent: true,
+        mcpDescription: `Generate an actual 3D model - an object, character, prop or scene mesh (GLB/GLTF) - and place it on the board as a 3D model viewer component.
+
+NOT for isometric or "3D-looking" diagrams, flowcharts or shapes (render_flowchart with category "3d") - this makes a real 3D asset the user can rotate.
+
+The model is generated by MockFlow AI in the user's browser, not by you: write a self-contained prompt describing the object, its form, materials and style, and call this once. 3D is one of the most expensive things MockFlow generates, so the user confirms the spend before it runs; the model appears on their board when it is ready - never output a URL, and do not wait for one.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                prompt: {
+                    type: 'string',
+                    description: 'The object to model: what it is, its form and proportions, materials, colours and style.'
+                }
+            },
+            required: ['prompt']
+        },
+        clientServerGenerate: true,
+        mediaComptype: 'MF_3DModelViewer_ID',
+        clientAitype: 'gen3dmodel',
+        clientToComp: 'MF_3DModelViewer_ID',
+        clientComp: null,
+        recipeOutputKeys: []
+    },
+
+    // ========================================================================
     // plan_board — Declare a multi-part board plan BEFORE drawing (bridge-native:
     // handled by the MockFlow Bridge like layout_board; the hosted server rejects
     // non-render tools gracefully). Arms the plan-first pipeline: the bridge counts
@@ -2804,12 +3374,14 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
     // ========================================================================
     {
         mcpToolName: 'plan_board',
-        mcpDescription: `Propose a multi-part board plan and END YOUR TURN. Call this whenever a request needs several visualizations - a plan, workspace, dashboard, kit, or a multi-screen app - listing every component with the render_* tool that draws it and a self-contained brief.
+        mcpDescription: `Propose a multi-part board plan and END YOUR TURN. Call this when a request needs several DIFFERENT components - a plan, workspace, dashboard or kit - listing every component with the render_* tool that draws it and a self-contained brief.
+
+ONE COMPONENT WINS OVER A PLAN. Before planning, check whether a single render_* tool already covers the whole request: if one does, call that tool directly and do not plan. A component that is itself multi-part - many screens, scenes, frames, steps or sections inside ONE artifact - is still one component, so a request for that artifact is one render call however many parts it contains. Only split a request into a plan when no single component can carry it.
 
 The list is shown to the user on their board to confirm or trim. When they click Generate Board, the chosen items are generated FROM YOUR BRIEFS and arranged automatically - all without you. So after this call: do not render anything, do not call any more tools; just tell the user to review the list and click Generate Board. Any render call you make while they are choosing is refused.
 
 Guidelines:
-- Break the request into the components a product team would expect (e.g. a launch plan: kanban + timeline + mindmap; an app concept: one wireframe per screen).
+- Break the request into the components a product team would expect (e.g. a launch plan: kanban + timeline + mindmap; a request to WIREFRAME a multi-screen app: one wireframe per screen).
 - Each brief must stand alone (the generator sees ONLY the briefs, not this conversation): what the component shows, the actual content/data or how to derive it, and for screens the device, viewport width and visual style.
 - Multi-screen wireframes/apps: one render_wireframelite item PER SCREEN; give every screen brief the same design system and the SAME viewportWidth so the screens come out matching.
 - NEVER ask a generator to fabricate specific real-world data the user did not provide - no invented vendor/company names, people, phone numbers, email addresses, URLs, prices or contact details. For tables and spreadsheets, describe the STRUCTURE and CATEGORIES ("columns: Item, Estimated Cost, Priority") and say to use neutral placeholder labels ("Item 1", "Vendor A") rather than inventing realistic-sounding entities.
@@ -2927,9 +3499,20 @@ for (var _gi = 0; _gi < IDEABOARD_MCP_REGISTRY.length; _gi++) {
     _ge.mcpDescription = String(_ge.mcpDescription || '') + CONTENT_GROUNDING;
 }
 
-// Helper: build tool definitions array for MCP servers
-IDEABOARD_MCP_REGISTRY.getToolDefinitions = function() {
-    return this.map(function(entry) {
+// Helper: build tool definitions array for MCP servers.
+//
+// `bridgeOnly` entries are left out unless the caller asks for them
+// (getToolDefinitions({ bridge: true })). Such a tool edits a component the user
+// has open in a connected editor tab, using state only that tab holds - so it is
+// meaningful to the MockFlow Bridge and to nobody else. Listing it for the hosted
+// or desktop MCP servers would offer an agent a tool that cannot run there. An
+// older bridge simply calls this with no argument and never sees it, which is the
+// right outcome: it would not know how to route it either.
+IDEABOARD_MCP_REGISTRY.getToolDefinitions = function(opts) {
+    var wantBridge = !!(opts && opts.bridge);
+    return this.filter(function(entry) {
+        return wantBridge || !entry.bridgeOnly;
+    }).map(function(entry) {
         return {
             name: entry.mcpToolName,
             description: entry.mcpDescription,
@@ -2950,6 +3533,12 @@ IDEABOARD_MCP_REGISTRY.mapToolToGdata = function(toolName, args) {
     // a stored action and drawn by a custom client action-transform, not this generic mapping. Return
     // null to signal that.
     if (entry.clientIsHtmlConversion) return null;
+
+    // Media components (render_image / video / audio / 3dmodel): the asset itself is
+    // generated by a MockFlow generator run from the connected editor, so there is no
+    // gdata to build here. Null tells a consumer that cannot do that (the hosted and
+    // desktop MCP servers) to refuse the call rather than draw an empty component.
+    if (entry.clientServerGenerate) return null;
 
     var gdata = { aitype: entry.clientAitype, data: {} };
     if (entry.clientComp) gdata.comp = entry.clientComp;
