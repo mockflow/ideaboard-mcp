@@ -1149,22 +1149,34 @@ IMPORTANT: Always display the returned URL to the user.`,
         // HTML→paintObjects conversion is a custom client flow, so mapToolToGdata returns
         // null (signalled by clientIsHtmlConversion) rather than the generic mapping.
         mcpToolName: 'render_wireframelite',
+        // WHEN to pick this, for the bridge's deciding step, which sees this line and
+        // nothing else. Carries the same rule the server classifier uses (the wireframe
+        // detectionPromptDescription plus its multiBoardIntentHint): a UI request with no
+        // interactive wording is a wireframe, and one screen is one component, so a whole
+        // product is a plan. Kept apart from mcpDescription for the same reason the server
+        // keeps classification apart from generation - that prompt has to open with the
+        // markup contract, and read as a decision it says only "convert HTML to a wireframe".
+        mcpDeclareLine: 'A static UI wireframe/mockup screen, and the DEFAULT for any UI request that carries no interactive wording. ONE screen is one component, so a whole app, site, dashboard or product flow is SEVERAL screens: declare "plan" for those, not this.',
         imageSlots: true,
         imageSlotForm: 'url',
         imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY.
-- Write each photo/avatar/logo/hero slot as <img src="" data-ai-prompt="what the picture shows" data-img-width="W" data-img-height="H" style="width:Wpx;height:Hpx;object-fit:cover;">, at most 5 per screen.
+- Write each photo slot as <img src="" data-ai-prompt="what the picture shows" data-img-width="W" data-img-height="H" style="width:Wpx;height:Hpx;object-fit:cover;">, at most 5 DISTINCT pictures per screen. In HTML this attribute form is the ONLY one: it is what carries the size, and a slot written any other way is generated at the full default size and charged for it.
+- DESCRIBE THE SUBJECT THE SLOT DEPICTS. A slot always sits where the interface is showing the user some specific thing; read what that thing is off its surroundings - the labels beside it, the section it belongs to, what the screen is for - and write the prompt as a photograph of it, concrete enough to be recognisable. A slot described as an abstract shape, a gradient, or as a "placeholder" produces exactly that: a picture of nothing, sitting where the screen meant to show something.
+- A PICTURE THAT RECURS IS NAMED, NOT RE-DESCRIBED. Any subject that appears more than once - within this screen or on any other screen of the same app in this request - carries data-shared-asset="<key>" beside its prompt: <img src="" data-shared-asset="brand_logo" data-ai-prompt="..." data-img-width="W" data-img-height="H" style="...">. Everything sharing a key is generated ONCE and the same picture is used everywhere it appears, so the brand mark stays one mark and a named person stays one face instead of becoming a different one per screen. The key is what identifies it, so the wording beside it does not have to match. Keys are stable, lowercase and snake_case, and describe WHO or WHAT rather than where it sits, so screens written separately arrive at the same key for the same thing: the brand mark is always brand_logo; a named person is avatar_<their first name>; a recurring item of the app's main entity is <entity>_<n>. Leave the key off a picture that genuinely appears once and nowhere else.
 - Same boxes, same layout, same text sizes as the screen would have had without them - only the box contents change.
-- ICONS ARE NEVER IMAGES: they stay FontAwesome SVG <img> tags, or you get a photo where an icon belongs.`,
+- ICONS ARE NEVER IMAGES: they stay FontAwesome SVG <img> tags, or you get a photo where an icon belongs.
+- CHARTS ARE NEVER IMAGES: a data visual stays a real Chart.js <canvas> per the CHARTS rules, or you get a picture of a chart the user cannot edit.`,
         imagesOffGuidance: `THIS RENDER HAS NO IMAGERY.
 - Photo/avatar/logo/thumbnail slots are <img src="placeholder" style="width:300px;height:200px;border:1px solid #ccc;"> at the intended size; full-bleed hero/banner backgrounds are a coloured <div>.
-- Emit NO data-ai-prompt attributes at all.`,
+- Emit NO data-ai-prompt attributes at all.
+- CHARTS ARE NOT IMAGERY: this mode changes nothing about data visuals — they stay real Chart.js <canvas> elements per the CHARTS rules, never placeholder <img> boxes.`,
         mcpDescription: `Convert HTML to an editable UI wireframe inside a MockFlow IdeaBoard wireframe frame.
 
 Provide a complete HTML document with inline CSS styles. The HTML is rendered in a real browser and converted element by element into editable MockFlow components.
 
 READ THIS FIRST — MARKUP CONTRACT. The converter maps real markup onto real MockFlow components. Anything you SIMULATE with other markup arrives as a plain rectangle or a stray text character, so the user gets a broken screen:
 1. ICONS: an <img> whose src is a FontAwesome SVG URL (details in ICONS below). A text, unicode or emoji character standing in for an icon is not an icon — it converts to a stray glyph of text, not an icon component.
-2. CHARTS: a real Chart.js <canvas> (details in CHARTS below). Bars, arcs, sparklines or gauges built out of styled divs, borders, gradients or CSS shapes are not charts — they convert to a pile of rectangles the user cannot edit as a chart, and the data is lost.
+2. CHARTS: a real Chart.js <canvas> (details in CHARTS below). Bars, arcs, sparklines or gauges built out of styled divs, borders, gradients or CSS shapes are not charts — they convert to a pile of rectangles the user cannot edit as a chart, and the data is lost. A chart is never an image either: an <img> placeholder standing where a chart belongs arrives as an empty picture box, not a chart.
 3. IMAGES: an <img> placeholder (details in IMAGES below).
 Never hand-draw what the contract already gives you a real element for. A UI screen with zero <img> icons, or a dashboard with zero <canvas>, is almost always a violation of this contract rather than a screen that genuinely has neither.
 
@@ -1175,24 +1187,25 @@ SCOPE — works for EITHER a full screen OR a single section/widget:
 DEVICE & VIEWPORT — for a full screen, size and lay out the wireframe for the device the request implies:
 - Honor an explicit device word in the request: a mobile/phone app screen → mobile width, a tablet/iPad screen → tablet width, a web/desktop screen → desktop width. "CRM mobile screen" MUST be a mobile-width layout, NOT desktop.
 - Give the outermost container that device's viewport width and lay it out to suit it: mobile ~390px (single column, stacked cards, bottom tab bar), tablet ~820px, desktop ~1280px (multi-column, sidebars). NEVER build a desktop-width layout for a mobile screen.
+- A mobile screen is a NATIVE app screen, NOT a web page squeezed into a phone width. Lay it out as a real app would: a single column with generous vertical spacing, touch-scale controls (buttons and inputs ~44px tall, full-width), mobile-scale type (titles 24-28px, body 16-17px), cards spanning the full content width with ~16px side padding, one input per row, stat tiles at most 2-up. No sidebars, no multi-column desktop grids, no desktop-density cramming.
 - When no device is implied (a generic web app, website, dashboard, or admin panel), default to desktop web (~1280px).
 - Multi-screen app (several calls to this tool): keep ONE shared design system across the screens (same brand, colours, fonts, nav/footer chrome) and pass the SAME viewportWidth on every call so all frames come out the same width.
 
 IMPORTANT RULES:
 - Use inline styles (style attribute) for all styling — no external stylesheets
 - Use standard HTML elements: div, h1-h6, p, input, button, select, textarea, img, ul, li, table, form
-- Include realistic placeholder text and content
+- Fill every text slot and metric with realistic sample content: plausible names, labels, numbers, dates and statuses. Never write the literal word "placeholder" as copy, and never leave a value as a bare dash — a KPI tile or list row whose value is missing reads as an empty, broken screen
 - Pass a short screen name in "title" — it becomes the frame's title on the board. Name the screen ("Dashboard", "Checkout"), not the request
 - Set explicit widths and heights where possible
 - Use a clean, structured layout with proper nesting
 - Give the outermost container an explicit width and a background color
 - Never use position:fixed or position:sticky — every element must sit in normal document flow, or it captures at the wrong place
-- Never draw a device frame, phone bezel or browser chrome around the screen: output only the interface itself
+- Never draw a device frame, phone bezel or browser chrome around the screen, and never draw the device's OS chrome inside it — no status bar (clock, signal, wifi, battery), no home indicator, no keyboard. Output only the app's own interface: a mobile screen starts at the app's header, not the phone's
 
 WIREFRAME STRUCTURE — this is a real UI screen, not a sparse block diagram. A screen that captures as a handful of grey boxes is a FAILED wireframe:
-- Compose the screen from clearly delineated SECTIONS, each in its own container: top nav / header bar, a status bar for mobile, distinct content sections, cards/panels grouping related content, forms, lists, and a footer or bottom tab bar where appropriate.
+- Compose the screen from clearly delineated SECTIONS, each in its own container: top nav / header bar, distinct content sections, cards/panels grouping related content, forms, lists, and a footer or bottom tab bar where appropriate.
 - Build recognizable WIDGETS, not loose text on rectangles: buttons with labels, input fields with labels or placeholders, checkboxes/radios/toggles, dropdowns, tabs, search bars, avatars, badges, table rows, list rows, cards, KPI tiles. Each must read as a standard, self-contained UI control.
-- Fill the screen with the real content that screen would show: a dashboard gets a KPI row AND charts AND a data table AND a sidebar; a list screen gets 5-8 real rows, not 2. Use realistic copy relevant to the screen ("Email", "Sign in", "Overdue invoices"), never lorem ipsum.
+- Fill the screen with the real content that screen would show: a dashboard gets a KPI row AND charts AND a data table (plus a sidebar on desktop — on mobile the same content stacks full-width); a list screen gets 5-8 real rows, not 2. Use realistic copy relevant to the screen ("Email", "Sign in", "Overdue invoices"), never lorem ipsum.
 - Establish visual hierarchy and consistent spacing on an 8px grid — varied font sizes and weights, even margins, aligned edges. Give every section and widget explicit, sensible dimensions so each captures as its own editable component.
 - Size sections to their content: no absurdly tall hero or empty sections.
 
@@ -1215,7 +1228,7 @@ CHARTS (use them whenever the screen is a dashboard, analytics, reporting or met
 2. WRAP every canvas in a container div with an EXPLICIT height and overflow:hidden:
    <div style="position:relative;height:250px;overflow:hidden;"><canvas id="chart1" data-chart-component="true"></canvas></div>
 3. data-chart-component="true" on every chart canvas is REQUIRED — without it the canvas captures as an empty rectangle.
-4. Initialize each chart in a <script> at the end of <body>, inside a DOMContentLoaded handler, with realistic sample data and maintainAspectRatio:false.
+4. Initialize each chart in a <script> at the end of <body>, inside a DOMContentLoaded handler, with realistic sample data and maintainAspectRatio:false. Every chart carries plausible non-empty data — an empty dataset renders bare axes on a blank panel. Use Chart.js v3 syntax only (a horizontal bar is type:'bar' with indexAxis:'y'): a config v3 cannot parse throws, and that canvas converts to a blank image instead of a chart.
 5. Heights: KPI-card charts 150-200px, dashboard panels 200-300px, large charts max 400px, never above 500px.
 6. Pick the type from the context: bar for comparisons, line for trends over time, pie/doughnut for distributions, filled line for cumulative/area, scatter/bubble/radar where they fit.
 7. The chart container background must match its surrounding card (do not hardcode white), and legend/label colours must contrast with it.
@@ -1319,10 +1332,38 @@ IMPORTANT: Always display the returned URL to the user.`,
         // is an HTML-input tool the backend processes into a stored action, so mapToolToGdata returns
         // null (clientIsHtmlConversion) and the client draws it via the 'prototypelite' action transform.
         mcpToolName: 'render_prototypelite',
+        // See render_wireframelite. This is the server's prototype detectionKeyDistinction:
+        // the user's OWN interactive wording is what elects a prototype, and it elects one
+        // even for a whole app. Without the first half every "build an app" request lands
+        // here; without the second half an explicit "interactive app" gets split into a plan.
+        mcpDeclareLine: 'A clickable, navigable prototype, ONLY when the user\'s own words ask for one ("prototype", "interactive", "clickable", "navigable", "demo the flow"). Then it wins even for a whole app, and it stays ONE component however many screens it wires together, never a plan.',
+        // The declare line above is a REQUEST to the model. These two fields are the
+        // same rule as DATA, so the bridge engine can hold the model to it instead of
+        // hoping it read the line: this component may only be elected when one of
+        // these words is in the USER's own message, and mcpRequiresFallbackTool is
+        // what the request is otherwise (the server classifier's "WIREFRAME WINS
+        // TIES", stated so it can be enforced rather than described). Any tool can
+        // carry them; a tool without them is never second-guessed.
+        //
+        // SINGLE WORDS, not phrases: "an interactive dashboard" asks for a prototype
+        // as plainly as "an interactive prototype" does. Matching is word-wise and
+        // punctuation-insensitive ("click-through" == "click through"), so list the
+        // word forms a user actually types rather than trying to cover stems.
+        mcpRequiresUserWords: [
+            'prototype', 'prototypes', 'prototyping',
+            'interactive', 'interactivity', 'interactively',
+            'clickable', 'click through', 'clickthrough',
+            'navigable', 'tappable', 'tap through',
+            'demo the flow', 'try the flow', 'walk through the flow',
+            'working demo', 'click around'
+        ],
+        mcpRequiresFallbackTool: 'render_wireframelite',
         imageSlots: true,
         imageSlotForm: 'url',
         imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY.
-- Write photo and hero slots as <img src="" data-ai-prompt="what the picture shows" data-img-width="W" data-img-height="H" style="width:Wpx;height:Hpx;object-fit:cover;">, only a handful across the whole flow.
+- Write photo and hero slots as <img src="" data-ai-prompt="what the picture shows" data-img-width="W" data-img-height="H" style="width:Wpx;height:Hpx;object-fit:cover;">, only a handful of DISTINCT pictures across the whole flow. In HTML this attribute form is the ONLY one: it is what carries the size, and a slot written any other way is generated at the full default size and charged for it.
+- DESCRIBE THE SUBJECT THE SLOT DEPICTS. A slot always sits where the interface is showing the user some specific thing; read what that thing is off its surroundings - the labels beside it, the section it belongs to, what the screen is for - and write the prompt as a photograph of it, concrete enough to be recognisable. A slot described as an abstract shape, a gradient, or as a "placeholder" produces exactly that: a picture of nothing, sitting where the screen meant to show something.
+- IDENTICAL PROMPT TEXT IS GENERATED ONCE AND REUSED wherever it appears, across every screen of this flow, so slots depicting the same thing should carry the same words. That is also how a recurring subject keeps one appearance from screen to screen: reuse its exact prompt rather than describing it afresh.
 - The screen structure and text sizes stay exactly as they would have been without them.
 - Icons are not images: keep them as icon markup.`,
         imagesOffGuidance: `THIS RENDER HAS NO IMAGERY - give photo/avatar/thumbnail slots a plain coloured or bordered box at the intended size, so the screens read as a working prototype rather than a broken page. Emit NO data-ai-prompt attributes.`,
@@ -3374,6 +3415,11 @@ The model is generated by MockFlow AI in the user's browser, not by you: write a
     // ========================================================================
     {
         mcpToolName: 'plan_board',
+        // The "plan" choice in the bridge's deciding step. Every render_* option in that
+        // menu states its own purpose, so leaving this one undescribed made it the option
+        // nobody picks: the whole-product case (one wireframe per screen) is exactly what
+        // the server multiboard classifier calls multi, and it has to say so here too.
+        mcpDeclareLine: 'Several DIFFERENT components at once: a workspace, dashboard or kit, OR one wireframe screen per surface of a whole app, site, product flow or multi-page site. Building a product out of static screens belongs here.',
         mcpDescription: `Propose a multi-part board plan and END YOUR TURN. Call this when a request needs several DIFFERENT components - a plan, workspace, dashboard or kit - listing every component with the render_* tool that draws it and a self-contained brief.
 
 ONE COMPONENT WINS OVER A PLAN. Before planning, check whether a single render_* tool already covers the whole request: if one does, call that tool directly and do not plan. A component that is itself multi-part - many screens, scenes, frames, steps or sections inside ONE artifact - is still one component, so a request for that artifact is one render call however many parts it contains. Only split a request into a plan when no single component can carry it.
