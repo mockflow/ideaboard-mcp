@@ -50,20 +50,20 @@ var IDEABOARD_MCP_REGISTRY = [
         // Declare-menu line: the menu reads ONE sentence per tool, and this family's
         // disambiguators must be in it — buried in sentence 2 of the description they
         // never reach the menu and the broad first sentence shades out the siblings.
-        mcpDeclareLine: 'Flowcharts and process/technical diagrams — flow, UML, sequence, bio/medical, circuit, P&ID, sketchy, 3D isometric, web/mobile layout structure — but NOT swimlane lane-per-role diagrams (render_swimlane), NOT AWS/Azure/GCP/Kubernetes cloud infrastructure (render_cloudarchitecture), and NOT database/ER schemas (render_database).',
-        mcpDescription: `Create diagrams including: Flowcharts, Sketchy Diagrams, 3D Isometric Diagrams, Bio/Medical Diagrams, Circuit Diagrams, P&ID Diagrams, UML Diagrams, Sketchy UML, Sequence Diagrams, Cloud Isometric Diagrams, Web Layout Diagrams, and Mobile Layout Diagrams. NOT for cross-functional/swimlane (lane-per-role) diagrams — use render_swimlane; NOT for AWS/Azure/GCP cloud infrastructure — use render_cloudarchitecture; NOT for database/ER schemas — use render_database.
+        mcpDeclareLine: 'Flowcharts and process/technical diagrams — flow, UML, sequence, bio/medical, circuit, P&ID, sketchy, 3D isometric, web/mobile layout structure, plus org charts and other hierarchy trees (a "chart" with no values to plot is a diagram, not render_chart) — but NOT swimlane lane-per-role diagrams (render_swimlane), NOT AWS/Azure/GCP/Kubernetes cloud infrastructure (render_cloudarchitecture), and NOT database/ER schemas (render_database).',
+        mcpDescription: `Create diagrams including: Flowcharts, Sketchy Diagrams, 3D Isometric Diagrams, Bio/Medical Diagrams, Circuit Diagrams, P&ID Diagrams, UML Diagrams, Sketchy UML, Sequence Diagrams, Cloud Isometric Diagrams, Web Layout Diagrams, Mobile Layout Diagrams, and Organizational Charts (org chart, reporting structure, hierarchy tree, family tree). NOT for cross-functional/swimlane (lane-per-role) diagrams — use render_swimlane; NOT for AWS/Azure/GCP cloud infrastructure — use render_cloudarchitecture; NOT for database/ER schemas — use render_database.
 
 CATEGORY (CRITICAL) - You MUST include a "category" field:
 - "default": General flowcharts, business processes, software flows. Uses standard shapes - NO matchKey needed
 - "sketchy": Hand-drawn style diagrams when user mentions "sketchy diagram", "hand-drawn diagram". Uses same shapes as default - NO matchKey needed
-- "3d": 3D/isometric diagrams when user mentions "3D diagram", "3D isometric diagram", "isometric diagram". Uses same shapes as default - NO matchKey needed
+- "3d": 3D/isometric-styled diagrams whose nodes are ABSTRACT — process steps, decisions, states ("3D flowchart" of a process) — and any request naming the pack itself ("3D flowchart", "3D shapes diagram") whatever its subject. Uses same shapes as default - NO matchKey needed
 - "bio": Biological, medical, anatomical diagrams (digestive system, cell cycle, DNA). Include matchKey in nodes
 - "circuit": Electrical, electronic, circuit diagrams. Include matchKey in nodes
 - "pandid": Piping and instrumentation diagrams (P&ID). Include matchKey in nodes
 - "uml": UML diagrams (class, use case, activity, state, component — NOT sequence diagrams, use "sequence"). Include matchKey in nodes
 - "uml-sketchy": Hand-drawn style UML diagrams. Include matchKey in nodes
 - "sequence": Sequence/interaction diagrams — message flow between actors/objects/services over time ("sequence diagram", "message sequence", "interaction diagram"). Simplified format, NO matchKey — see SEQUENCE DIAGRAM RULES
-- "cloud-isometric": Isometric cloud diagrams. Include matchKey in nodes
+- "cloud-isometric": Isometric diagrams whose nodes are real things with a symbol — servers, databases, storage, queues, gateways, firewalls, networks, clouds, devices, dashboards. Covers "cloud isometric diagram" AND a "3D isometric diagram" of a system, network, data pipeline or deployment, so nodes render as isometric icons rather than plain blocks. Include matchKey in nodes
 - "weblayout": Web layout diagrams, web page structure. Include matchKey in nodes
 - "mobilelayout": Mobile layout diagrams, mobile app structure. Include matchKey in nodes
 
@@ -348,8 +348,10 @@ IMPORTANT: Always display the returned URL to the user.`,
         // without a named provider — without this claim stated in the menu sentence, a
         // generic "architecture diagram" request read as provider-specific and slid to
         // the whiteboard tools (in-app detection never mis-routes it, so this is parity).
-        mcpDeclareLine: 'ANY software/system ARCHITECTURE diagram — backend, microservices, deployment, infrastructure, integration, network or cloud architecture, whether or not a provider (AWS/Azure/GCP/Kubernetes/SAP) is named — NOT physical building architecture, and NOT a hand-drawn "cloud isometric" look (render_flowchart).',
-        mcpDescription: `Create cloud/software system architecture diagrams — backend, microservices, deployment, infrastructure, integration or network architecture — for AWS, Azure, GCP, Kubernetes, SAP, or generic systems (use "aws" icons when no provider is named). ONLY for technical software/cloud/network diagrams — NOT for physical buildings, construction, or real-world/building architecture. For a hand-drawn "cloud isometric diagram" use render_flowchart (cloud-isometric category) instead.
+        mcpDeclareLine: 'ANY software/system ARCHITECTURE diagram — backend, microservices, deployment, infrastructure, integration, network or cloud architecture, whether or not a provider (AWS/Azure/GCP/Kubernetes/SAP) is named — NOT physical building architecture, and NOT a diagram the user asked for in a named style ("3D isometric", "cloud isometric", "sketchy", "hand-drawn"), where the style request outranks the subject and render_flowchart is the tool.',
+        mcpDescription: `Create cloud/software system architecture diagrams — backend, microservices, deployment, infrastructure, integration or network architecture — for AWS, Azure, GCP, Kubernetes, SAP, or generic systems (use "aws" icons when no provider is named). ONLY for technical software/cloud/network diagrams — NOT for physical buildings, construction, or real-world/building architecture.
+
+A diagram STYLE named by the user outranks the subject: "3D isometric diagram", "isometric diagram", "cloud isometric diagram", "sketchy diagram" or "hand-drawn diagram" is render_flowchart with the matching category (3d, cloud-isometric, sketchy), even when it depicts infrastructure, a data pipeline, services or a deployment. This tool would otherwise stamp provider (AWS) icons on a diagram the user asked to see in a different style.
 
 CRITICAL FORMAT RULES:
 - diagramType picks the icon set: "aws", "azure", "gcloud", "kubernetes", "sap", "sapbtp", "oracle", or "cisco"
@@ -425,7 +427,7 @@ IMPORTANT: Always display the returned URL to the user.`,
         planUIType: 'charts',
         // Real-world/current data component: the local agent may web-research first.
         webResearch: true,
-        mcpDescription: `Create charts including pie, bar, line, area, scatter, bubble, and radar charts.
+        mcpDescription: `Create charts including pie, bar, line, area, scatter, bubble, and radar charts. Only for plotting VALUES: a "chart" that plots nothing and instead shows how people or parts relate (org chart, reporting structure, hierarchy tree) is a diagram — use render_flowchart.
 
 CRITICAL: SINGLE-SERIES vs MULTI-SERIES DATA FORMATS:
 
@@ -1088,21 +1090,19 @@ COMPONENT TYPES:
 1. MF_Section (Container areas):
 {
   t: "MF_Section", x: 50, y: 50, w: 500, h: 300, a: 0, e: "section1", an: false, hd: false, ij: "",
-  tx: "Section Title", ta: "center", fs: 18, fcl: "#333333", fw: "bold", fst: "normal", td: "none", fnt: "sourcesanspro",
-  fc: ["#f0f8ff", "#f0f8ff"], ft: "solid", fa: 0.2,
-  bc: ["#ccc", "#ccc", "#ccc", "#ccc", "#ccc"], bw: [2, 2, 2, 2, 2], bt: ["solid", "solid", "solid", "solid", "solid"],
-  br: [10, 10, 10, 10, 10], bs: true, lt: "minimal", skt: "none", skd: 20
+  tx: "Section Title", ta: "center", fs: 18, fw: "bold", fst: "normal", td: "none", fnt: "sourcesanspro",
+  theme: "ash", br: [10, 10, 10, 10, 10], lt: "minimal", skt: "none", skd: 20
 }
-Section colors (light pastels): #f0f8ff, #f5f5dc, #f0fff0, #fff8dc
+Section colours come from the section's own theme list, never a hand-picked hex: "white", "ash", "ink", "mockflow", "mint", "citrus", "blossom", "orchid", "teal", "sunny", "cherry", "sand". The theme paints fill, border and title colour, so do NOT send fc, ft, fa, bc, bw, bt, bs or fcl on an MF_Section. "white" and "ash" are the neutrals most sections take; a coloured theme tells a few apart rather than painting them all.
 
 2. MF_Note2 (Sticky notes):
 {
   t: "MF_Note2", x: 100, y: 120, w: 150, h: 100, a: 0, e: "note1", an: false, hd: false, ij: "",
   tx: "Note text", ta: "left", fs: 14, fcl: "#333333", fw: "normal", fst: "normal", td: "none", fnt: "sourcesanspro",
-  lh: 1.3, tp: 10, fc: ["#fbf4a4", "#fbf4a4"], ft: "solid", fa: 1,
+  lh: 1.3, tp: 10, fc: ["#FFF8C4", "#FFF8C4"], ft: "solid", fa: 1,
   st: "custom::0::2::2::0::#000000::0.1", borderColor: "#000000", bw: 1, bt: "none", br: 5, fd: true
 }
-Sticky note colors: #fbf4a4 (yellow), #d3f293 (green), #A7CDF6 (blue), #f0b6bc (pink), #e6defd (purple)
+Sticky note colours are the note component's own swatches, the same swatch twice, never invented: #FFF8C4 (light yellow), #FFE6C7 (light peach), #FFD6D6 (light rose), #F3D9FF (light lavender), #D6E4FF (light blue), #C9F0F7 (light cyan), #DEF7C4 (light green), #ECEFF4 (light grey). Notes in one section share a swatch, and that swatch should sit with the section's theme.
 
 3. MF_Text (Labels and headers):
 {
@@ -1160,7 +1160,7 @@ IMPORTANT: Always display the returned URL to the user.`,
                                     tx: { type: 'string', description: 'Text content: the note, the label, the section title' },
                                     ta: { type: 'string', enum: ['left', 'center', 'right', 'justify'] },
                                     fs: { type: 'number', description: 'REQUIRED on anything with text. Font size in px: section titles 16-24, note text 12-16, board headings larger. Omit it and every word renders at the same default size.' },
-                                    fcl: { type: 'string', description: 'Font colour, hex - dark text on a light sticky, light on a dark section' },
+                                    fcl: { type: 'string', description: 'Font colour, hex - dark text on a light sticky. Not for MF_Section: its theme sets the title colour.' },
                                     fw: { type: 'string', enum: ['normal', 'bold', '200', '300', '600', '900'] },
                                     fst: { type: 'string', enum: ['normal', 'italic'] },
                                     td: { type: 'string', enum: ['none', 'underline', 'line-through'] },
@@ -1168,7 +1168,8 @@ IMPORTANT: Always display the returned URL to the user.`,
                                     lh: { type: 'number', description: 'Line height multiplier, 1.2-1.5 keeps notes readable' },
                                     tp: { type: 'number', description: 'MF_Note2: padding inside the sticky, 8-15' },
                                     fold: { type: 'boolean', description: 'MF_Note2: the folded-corner effect' },
-                                    fc: { type: 'array', items: { type: 'string' }, description: 'Fill colours [from, to] - sticky colours like ["#fbf4a4","#fbf4a4"], pastel sections' },
+                                    theme: { type: 'string', enum: ['white', 'ash', 'ink', 'mockflow', 'mint', 'citrus', 'blossom', 'orchid', 'teal', 'sunny', 'cherry', 'sand'], description: 'MF_Section ONLY: the named palette that colours the section. It paints fill, border and title colour, so a themed section carries no colour properties of its own. Most sections take "white" or "ash".' },
+                                    fc: { type: 'array', items: { type: 'string' }, description: 'MF_Note2 and shapes only - fill colours [from, to]. A sticky takes the SAME swatch twice from the note palette, e.g. ["#FFF8C4","#FFF8C4"]. Never send fc on an MF_Section: its theme paints it.' },
                                     ft: { type: 'string', enum: ['solid', 'linear-vertical', 'linear-horizontal', 'linear-diagonally', 'radial', 'none'] },
                                     fa: { type: 'number', description: 'Fill opacity 0-1' },
                                     st: { type: 'string', description: 'Shadow: none | drop-shadow | inner-shadow | glow (a soft drop shadow suits notes)' },
@@ -1219,7 +1220,7 @@ IMPORTANT: Always display the returned URL to the user.`,
         // product is a plan. Kept apart from mcpDescription for the same reason the server
         // keeps classification apart from generation - that prompt has to open with the
         // markup contract, and read as a decision it says only "convert HTML to a wireframe".
-        mcpDeclareLine: 'A static UI wireframe/mockup screen, and the DEFAULT for any UI request that carries no interactive wording. ONE screen is one component, so a whole app, site, dashboard or product flow is SEVERAL screens: declare "plan" for those, not this.',
+        mcpDeclareLine: 'A static UI wireframe/mockup screen, and the DEFAULT for any UI request that carries no interactive wording — including a landing page or web page however the user words it ("design a landing page" is this, not render_designframe), and an EMAIL TEMPLATE or NEWSLETTER LAYOUT, which is a laid-out surface of sections rather than a graphic. ONE screen is one component, so a whole app, site, dashboard or product flow is SEVERAL screens: declare "plan" for those, not this.',
         imageSlots: true,
         imageSlotForm: 'url',
         imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY.
@@ -1244,7 +1245,8 @@ READ THIS FIRST — MARKUP CONTRACT. The converter maps real markup onto real Mo
 Never hand-draw what the contract already gives you a real element for. A UI screen with zero <img> icons, or a dashboard with zero <canvas>, is almost always a violation of this contract rather than a screen that genuinely has neither.
 
 SCOPE — works for EITHER a full screen OR a single section/widget:
-- Full page/screen: a whole app screen, dashboard, or landing page. Use a page-width container (see DEVICE & VIEWPORT below) with a background color.
+- Full page/screen: a whole app screen, dashboard, or landing page — a landing page is this tool even when the user says "design" it. Use a page-width container (see DEVICE & VIEWPORT below) with a background color.
+- Email/newsletter: a whole email template is this tool too, at email width — see EMAIL TEMPLATE under DEVICE & VIEWPORT below.
 - Section or widget only: a single UI piece on its own — e.g. a login card, navbar, pricing table, signup form, sidebar, product card, stats row, data table, hero section, or button group. Size the container to the widget's NATURAL size (e.g. a 380px card, a 1280x64 navbar, a 320px sidebar). Do NOT wrap a partial widget in a full-viewport centering flexbox or a full-page background — keep just the widget so the frame hugs its bounds.
 
 DEVICE & VIEWPORT — for a full screen, size and lay out the wireframe for the device the request implies:
@@ -1252,6 +1254,7 @@ DEVICE & VIEWPORT — for a full screen, size and lay out the wireframe for the 
 - Give the outermost container that device's viewport width and lay it out to suit it: mobile ~390px (single column, stacked cards, bottom tab bar), tablet ~820px, desktop ~1280px (multi-column, sidebars). NEVER build a desktop-width layout for a mobile screen.
 - A mobile screen is a NATIVE app screen, NOT a web page squeezed into a phone width. Lay it out as a real app would: a single column with generous vertical spacing, touch-scale controls (buttons and inputs ~44px tall, full-width), mobile-scale type (titles 24-28px, body 16-17px), cards spanning the full content width with ~16px side padding, one input per row, stat tiles at most 2-up. No sidebars, no multi-column desktop grids, no desktop-density cramming.
 - When no device is implied (a generic web app, website, dashboard, or admin panel), default to desktop web (~1280px).
+- EMAIL TEMPLATE / NEWSLETTER — not a device, a fixed canvas: build it ~600px wide as ONE centered column of stacked full-width blocks (logo header, hero, body sections, full-width CTA buttons, footer with unsubscribe and address). No nav bar, no sidebar, no hamburger, no sticky header, no multi-column desktop grid — an email has no app chrome. Never build one at page width with an email-shaped box floating inside it.
 - Multi-screen app (several calls to this tool): keep ONE shared design system across the screens (same brand, colours, fonts, nav/footer chrome) and pass the SAME viewportWidth on every call so all frames come out the same width.
 
 IMPORTANT RULES:
@@ -1439,6 +1442,7 @@ USE THIS WHEN the user wants a working, clickable, multi-screen prototype or int
 DEVICE & VIEWPORT (decide this FIRST — it drives the entire layout):
 - Set deviceType to match what the user asked for: a mobile/phone app → "mobile", a tablet/iPad app → "tablet", a web/desktop app → "desktop". Honor an explicit device word in the request (e.g. "CRM mobile app" → "mobile"). Default "mobile".
 - Design EVERY screen for that device's viewport width and lay it out to suit it: mobile ~390px wide (single column, bottom tab bar, stacked cards), tablet ~820px, desktop ~1280px (multi-column, sidebars). NEVER build a desktop-width layout for a mobile app.
+- ALSO pass viewportWidth (and viewportHeight) with the EXACT viewport you laid the screens out for, and the board frames the prototype at precisely that device instead of the nearest of the three presets. This is what makes any device work — a watch (~200x250), a TV or 10-foot UI (1920x1080), an ultrawide, a foldable, a portrait kiosk (1080x1920) — none of which is a preset. viewportHeight is the DEVICE's screen height, never the length of your content: a screen is one viewport and scrolls inside it. When you are converting existing wireframes, pass THEIR width so the prototype comes out the device they were drawn for.
 - Render each screen edge-to-edge filling the viewport (html, body, and your root at width/height 100%). Do NOT draw a device bezel, status bar, notch, or home indicator — the board already frames the prototype in the chosen device, so any bezel you draw just gets clipped.
 
 HTML CONTRACT (required — the built-in player relies on it):
@@ -1457,6 +1461,7 @@ HTML CONTRACT (required — the built-in player relies on it):
 INPUT:
 - html (required): the complete self-contained prototype HTML following the contract above.
 - deviceType (optional): "mobile" (default), "tablet", or "desktop" — MUST match the device you designed the screens for (see DEVICE & VIEWPORT).
+- viewportWidth / viewportHeight (optional, both in px): the exact device viewport you designed to. Give these whenever the device is anything other than a stock phone/tablet/desktop, and the frame is sized to it exactly.
 - title (optional): short prototype name shown on the frame's header (e.g. "Habit Tracker"). Falls back to the HTML <title> tag when omitted.
 
 IMPORTANT: Always display the returned board URL to the user.`,
@@ -1471,6 +1476,14 @@ IMPORTANT: Always display the returned board URL to the user.`,
                     type: 'string',
                     enum: ['mobile', 'tablet', 'desktop'],
                     description: 'Device frame the prototype is presented in AND the viewport you MUST design every screen for. Match the user\'s stated device (a "mobile app" → "mobile"). Defaults to "mobile". Design widths: mobile ~390px, tablet ~820px, desktop ~1280px.'
+                },
+                viewportWidth: {
+                    type: 'number',
+                    description: 'Exact viewport width in px you laid the screens out for. The frame is sized to it precisely instead of the nearest deviceType preset, so ANY device works: watch ~200, phone 390, foldable 512, tablet 820, laptop 1280, desktop 1440, TV 1920, kiosk portrait 1080. When converting existing wireframes, pass THEIR width.'
+                },
+                viewportHeight: {
+                    type: 'number',
+                    description: 'Exact viewport height in px of that device (e.g. 844 for a 390px phone, 1080 for a 1920px TV). This is the DEVICE screen height, NOT the length of your content — a screen scrolls inside its viewport. Omit and a height suiting viewportWidth is used.'
                 },
                 title: {
                     type: 'string',
@@ -3277,6 +3290,30 @@ CONTENT GUIDELINES:
         // Plan-picker badge join key, and the human word for this component in the
         // image ask + re-render prompt ("design", not "designframe").
         planUIType: 'design',
+        // WHEN to pick this, for the bridge's deciding step, which sees this line and
+        // nothing else. Carries the same rule the server classifier does (the design
+        // detectionPromptDescription): this is graphic/marketing material only, and a
+        // UI surface is a wireframe however the request words it. Without this line the
+        // bridge falls back to the first sentence of mcpDescription, which names what
+        // the tool draws but not what it must refuse.
+        mcpDeclareLine: 'A finished graphic/marketing piece — poster, flyer, banner, social post, business card, brand or slide layout. NOT any part of a product interface: a landing page, web page, app or mobile screen, dashboard, or a section of one is render_wireframelite, even when the user says "design" it.',
+        // The declare line is a REQUEST to the model; these two are the same rule as
+        // DATA, so the bridge holds the model to it (same mechanism render_prototypelite
+        // uses below). A design frame may only be elected when the user NAMED a piece of
+        // graphic material — otherwise the request is a UI surface and the fallback tool
+        // is what it actually is. "design" itself is deliberately NOT a trigger word:
+        // "design a landing page" is the exact phrasing this guard exists to catch.
+        mcpRequiresUserWords: [
+            'poster', 'posters', 'flyer', 'flyers', 'leaflet', 'brochure', 'pamphlet',
+            'banner', 'billboard', 'signage', 'logo', 'logotype', 'wordmark',
+            'business card', 'postcard', 'invitation', 'invite', 'greeting card',
+            'certificate', 'badge', 'sticker', 'packaging', 'label', 'letterhead',
+            'social post', 'instagram', 'facebook', 'linkedin', 'twitter',
+            'thumbnail', 'cover art', 'album cover', 'book cover',
+            'ad', 'advert', 'advertisement', 'creative', 'graphic', 'graphics',
+            'artwork', 'print', 'brand', 'branding', 'slide', 'slides', 'deck'
+        ],
+        mcpRequiresFallbackTool: 'render_wireframelite',
         imageSlots: true,
         imageSlotForm: 'imageID',
         imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY - let photography anchor the layout.
@@ -3297,7 +3334,7 @@ STYLE KEYS: fc (fill colors array e.g. ["#2563eb","#2563eb"]), ft "solid", tx (t
 
 GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
 - Coordinates are canvas-relative and start at 0,0. The FIRST component is the background: x 0, y 0, w/h = the full canvas.
-- Choose a canvas size for the medium and keep EVERY component fully inside it: no part of any component (x, y, x+w, y+h) may fall outside the canvas. Typical sizes (same as the in-app generator): Instagram post 1080x1080, story 1080x1920, Facebook cover 1920x1080, business card 350x200, poster/flyer 400x600, A4 595x842, logo 400x400, website hero 1920x600, email header 600x200, YouTube thumbnail 1280x720.
+- Choose a canvas size for the medium and keep EVERY component fully inside it: no part of any component (x, y, x+w, y+h) may fall outside the canvas. Typical sizes (same as the in-app generator): Instagram post 1080x1080, story 1080x1920, Facebook cover 1920x1080, business card 350x200, poster/flyer 400x600, A4 595x842, logo 400x400, website hero 1920x600, email header BANNER 600x200 (the graphic strip only — a whole email template or newsletter is render_wireframelite, not this), YouTube thumbnail 1280x720.
 - Do NOT overlap components unless the overlap is deliberate (text sitting on its own background block). Plan a grid or column layout before emitting JSON and keep 10-20px between neighbours.
 - SIZE TEXT BOXES TO THEIR CONTENT. Text that does not fit its w/h is auto-shrunk on the board (down to 5px), so a heading in an undersized box renders unreadably small. Budget about fs * 1.6 of height per line of text and enough width for the longest line plus padding.
 - Font sizes (same as the in-app generator): headlines 18-24, body 12-16, captions 10-14 — scale up proportionally only on the large canvases (Instagram/poster-size), never on small media like business cards.
@@ -3493,13 +3530,17 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
         mcpDescription: `Create a whiteboard WRAPPED IN a MockFlow IdeaBoard whiteboard frame (a single framed board component), for brainstorming and strategy canvases: sticky notes, sections, and named frameworks (SWOT, retro, empathy map, business model canvas, matrices). Differs from render_whiteboard, which drops the same content as LOOSE components on the canvas rather than inside a frame. NOT for diagrams: system/cloud architecture diagrams are render_cloudarchitecture, flowcharts/UML render_flowchart.
 
 Compressed layout { "components": { "c": [ ... ] } }:
-- MF_Section: container areas (tx title, fc pastel fill e.g. ["#f0f8ff","#f0f8ff"]).
-- MF_Note2: sticky notes (tx text, fc e.g. ["#fbf4a4","#fbf4a4"]).
+- MF_Section: container areas (tx title, theme e.g. "ash").
+- MF_Note2: sticky notes (tx text, fc e.g. ["#FFF8C4","#FFF8C4"]).
 - MF_Text: labels/headers.
 - MF_Rectangle2: containers, dividers, process boxes, buttons (fc fill pair, ft "solid", bc/bw/bt/br border arrays, optional tx label).
 - MF_Circle2: priority markers, status indicators, accents (fc fill pair, borderColor, bw, bt, optional tx like "P1").
 Use rectangles/circles where the layout calls for them (process flows, mind-map hubs, priority matrices) — an all-notes board reads flat for those.
 REQUIRED KEYS: t, x, y, w, h, a (0), e.
+
+COLOURS (sections and stickies come from the palettes the components themselves offer, never invented):
+- MF_Section: set theme to one of "white", "ash", "ink", "mockflow", "mint", "citrus", "blossom", "orchid", "teal", "sunny", "cherry", "sand". It paints fill, border and title colour, so do NOT send fc, ft, fa, bc, bw, bt, bs or fcl on a section. Most sections take "white" or "ash"; a coloured theme tells a few apart rather than painting them all.
+- MF_Note2: fc is the SAME swatch twice from #FFF8C4 (light yellow), #FFE6C7 (light peach), #FFD6D6 (light rose), #F3D9FF (light lavender), #D6E4FF (light blue), #C9F0F7 (light cyan), #DEF7C4 (light green), #ECEFF4 (light grey). Notes in one section share a swatch that sits with that section's theme.
 
 GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
 - Coordinates are canvas-relative and start at 0,0.
@@ -3531,7 +3572,7 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
                                     tx: { type: 'string', description: 'Text content: the note, the label, the section title' },
                                     ta: { type: 'string', enum: ['left', 'center', 'right', 'justify'] },
                                     fs: { type: 'number', description: 'REQUIRED on anything with text. Font size in px: section titles 16-24, note text 12-16, board headings larger. Omit it and every word renders at the same default size.' },
-                                    fcl: { type: 'string', description: 'Font colour, hex - dark text on a light sticky, light on a dark section' },
+                                    fcl: { type: 'string', description: 'Font colour, hex - dark text on a light sticky. Not for MF_Section: its theme sets the title colour.' },
                                     fw: { type: 'string', enum: ['normal', 'bold', '200', '300', '600', '900'] },
                                     fst: { type: 'string', enum: ['normal', 'italic'] },
                                     td: { type: 'string', enum: ['none', 'underline', 'line-through'] },
@@ -3539,7 +3580,8 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
                                     lh: { type: 'number', description: 'Line height multiplier, 1.2-1.5 keeps notes readable' },
                                     tp: { type: 'number', description: 'MF_Note2: padding inside the sticky, 8-15' },
                                     fold: { type: 'boolean', description: 'MF_Note2: the folded-corner effect' },
-                                    fc: { type: 'array', items: { type: 'string' }, description: 'Fill colours [from, to] - sticky colours like ["#fbf4a4","#fbf4a4"], pastel sections' },
+                                    theme: { type: 'string', enum: ['white', 'ash', 'ink', 'mockflow', 'mint', 'citrus', 'blossom', 'orchid', 'teal', 'sunny', 'cherry', 'sand'], description: 'MF_Section ONLY: the named palette that colours the section. It paints fill, border and title colour, so a themed section carries no colour properties of its own. Most sections take "white" or "ash".' },
+                                    fc: { type: 'array', items: { type: 'string' }, description: 'MF_Note2 and shapes only - fill colours [from, to]. A sticky takes the SAME swatch twice from the note palette, e.g. ["#FFF8C4","#FFF8C4"]. Never send fc on an MF_Section: its theme paints it.' },
                                     ft: { type: 'string', enum: ['solid', 'linear-vertical', 'linear-horizontal', 'linear-diagonally', 'radial', 'none'] },
                                     fa: { type: 'number', description: 'Fill opacity 0-1' },
                                     st: { type: 'string', description: 'Shadow: none | drop-shadow | inner-shadow | glow (a soft drop shadow suits notes)' },
@@ -3596,6 +3638,10 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
         mcpDescription: `Generate a standalone picture - an illustration, photo, artwork, icon or logo - and place it on the board as an image component. Use this whenever the user asks for an image/picture/photo/illustration of something.
 
 NOT for a design, poster or social post laid out from shapes and text (render_designframe), a UI screen (render_wireframelite), or a mood/inspiration board (render_moodframe) - those compose many components and can contain imagery, but they are not a picture.
+
+NOT for a diagram or chart asked for in a visual style - "3D isometric diagram", "sketchy diagram", "hand-drawn flowchart", "a chart with an ocean theme". The style says how the artifact is DRAWN, not that a picture is wanted: use render_flowchart with the matching category (3d, sketchy, cloud-isometric) or render_chart, which render real, editable components in that style.
+
+ONLY when the user asks for a picture. Never call this to illustrate, decorate or accompany something another tool is producing in the same turn - a hero shot for a wireframe you are building, a mood image beside a chart, a backdrop for a design. Words describing how an artifact should look (energetic, vibrant, moody, premium) belong in that artifact's own prompt and are never a reason to add a picture the user did not ask for.
 
 The picture is generated by MockFlow AI in the user's browser, not by you: write a vivid, self-contained prompt describing the subject, composition, lighting and art style, and call this once. The user confirms the spend before it runs, and the image appears on their board when it is ready - never output a URL, and do not wait for one.`,
         mcpInputSchema: {
