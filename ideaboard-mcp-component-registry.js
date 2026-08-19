@@ -639,7 +639,10 @@ IMPORTANT: Always display the returned URL to the user.`,
                 extraFields: { generatedDoc: args.content || '' }
             };
         },
-        recipeOutputKeys: ['markdown']
+        // 'document' is the same component under the recipe UI's other label
+        // (ai-component-registry recipeOutputAltKeys) - both must map here or a
+        // recipe built on it cannot be exported as an Agent Skill.
+        recipeOutputKeys: ['markdown', 'document']
     },
     {
         mcpToolName: 'render_codeblock',
@@ -696,7 +699,8 @@ IMPORTANT: Always display the returned URL to the user.`,
                 }
             };
         },
-        recipeOutputKeys: ['codeblock']
+        // 'code' is this component's other recipe label - see render_markdown.
+        recipeOutputKeys: ['codeblock', 'code']
     },
     {
         mcpToolName: 'render_map',
