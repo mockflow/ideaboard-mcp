@@ -355,28 +355,69 @@ A diagram STYLE named by the user outranks the subject: "3D isometric diagram", 
 
 CRITICAL FORMAT RULES:
 - diagramType picks the icon set: "aws", "azure", "gcloud", "kubernetes", "sap", "sapbtp", "oracle", or "cisco"
-- Standard node size: width=180, height=100
-- EVERY node AND EVERY group carries loc, width and height — the renderer refines the layout from your structure, but it needs this rough geometry as input: reading order comes from your loc values (left-to-right flow, rows share similar y) and each group's box must nominally CONTAIN its children. A group without width/height breaks the layout.
+- Send TOPOLOGY ONLY. The renderer computes every position, size, connector side and route from the structure you send, so any geometry you write is discarded.
+- NEVER send width, height, fromSpot or toSpot.
+- flowDirection is the axis the architecture reads along, and the layout engine lays the sections along it: "horizontal" sets them in a row, "vertical" stacks them. Send it on every diagram.
+- loc is a ROUGH reading-order hint only: order it along the flowDirection you chose, giving components in the same stage the same position on the other axis. Round numbers are fine — real coordinates are computed on render.
 - Use "\\n" for multi-line text labels (e.g., "Application\\nLoad Balancer")
 
-CONTAINER SIZING FORMULA:
-- Subnet: For N nodes vertically: width=350, height=(N × 180) + 140
-- VPC: width=(numSubnets × 420) + 40, height=tallestSubnet + 90
-- Cloud: VPC width + 100, VPC height + 130
+FLOW DIRECTION: decide it from the way the architecture describes itself, not from a default. Sections that are stages of one thing — tiers, layers, planes, phases, a stack, a pipeline that ingests then processes then stores — are already numbered top to bottom and belong "vertical"; a three-tier application, an ETL or streaming pipeline, a platform stack and a control-plane/data-plane split are all vertical. Sections that are places a request travels between — an actor outside, a network, a region, a provider boundary — are "horizontal". When both readings fit, prefer "vertical".
 
-SPACING RULES (for clean link labels):
-- Horizontal between nodes: 320-420px center-to-center
-- Vertical between nodes: 180px center-to-center
-- Subnet internal padding: 85px from left, 80px from top
-- First node in subnet: loc.x = subnet.loc.x + 85, loc.y = subnet.loc.y + 120
+SCOPE: a diagram carries the SHAPE of the architecture, not an inventory of it. Every extra node, link, label and section makes the picture wider and each thing on it smaller.
+- Let the request set the size: a short ask gets 5-9 components, a detailed ask gets what it actually names. 12 or so is a full diagram; past that you are drawing an inventory.
+- Identical replicas are ONE node: two app servers behind a load balancer or three brokers in a cluster is one node saying so in text or type ("App Servers", "Auto Scaling Group").
+- Supporting services that touch everything (monitoring, logging, secrets, IAM, CI/CD, backup) belong on the diagram only when the request is ABOUT them.
+- Never pad, and never invent detail the request did not ask for.
 
-GROUP COLORS (CRITICAL): ALL group/section backgrounds MUST be white ("fillColor": "#FFFFFF") — no tinted section fills; this is the same look the in-app generator ships. The section's brand color goes on "color" (border) and "fontColor" (title), e.g. AWS Cloud #FF9900, VPC #232F3E, Public Subnet #3F8624, Private Subnet #D13212, Data Subnet #3B48CC; Azure Cloud #0078D4, VNet #004578; GCP Cloud #4285F4, VPC #34A853; Kubernetes Cluster #326CE5, Control Plane #1A3A6B; SAP BTP #0070F2. Service (non-group) nodes carry BOTH color (border) and a light pastel fillColor so black text stays readable.
+GROUP COLORS (CRITICAL): ALL group/section backgrounds MUST be white ("fillColor": "#FFFFFF") — no tinted section fills; this is the same look the in-app generator ships. The section's brand tone goes on "color" (border) and "fontColor" (title). The renderer paints the whole section from "color", so EVERY section needs one, and sibling sections take different tones from the palette so they read apart. A section named after a layer or a stage rather than a provider construct still takes the next tone from that palette, never the same tone as its neighbour:
+- AWS: Cloud #FF9900, VPC #232F3E, Public Subnet #3F8624, Private Subnet #D13212, Data Subnet #3B48CC
+- Azure: Cloud #0078D4, Virtual Network #004578, Public #107C10, Private #D13438, Data #5C2D91
+- Google Cloud: Cloud #4285F4, VPC #34A853, Public #FBBC04, Private #EA4335, Data #9AA0A6
+- SAP: BTP #0070F2, Subaccount #0054B4, Integration Suite #07838F, Application Layer #5D36FF, On-Premise #475E75
+- Kubernetes: Cluster #326CE5, Control Plane #1A3A6B, Worker Nodes #4A90D9, Pods #326CE5
+Service (non-group) nodes carry BOTH color (border) and a light pastel fillColor so black text stays readable. External actors outside the cloud (users, on-premise systems, third parties) use a neutral grey such as #374151 on #F9FAFB.
 
 STRUCTURE:
-- Horizontal left-to-right flow: external users/internet on the left, cloud provider group middle/right
-- Cloud group contains VPC; VPC contains subnets (Public, Private, Data); subnets contain the actual services (group: "parentKey" for nesting, isGroup: true on containers)
+- Read order follows flowDirection: external users/internet first, then the cloud provider section (left to right when horizontal, top to bottom when vertical)
+- Nest with group: "parentKey" and isGroup: true on containers, provider > region or network > services
+- Sections are expensive: each adds a border, a heading and padding that push its contents away from everything else. Budget about one section per three or four components, and never more sections than a third of the component count
+- Nest at most 3 levels deep. A region holding its services directly beats a region holding a VPC holding a subnet holding one service
+- Flatter means fewer WRAPPERS, never a broken hierarchy: regions, VPCs and networks stay INSIDE the provider's section, never beside it. Either put the regions in the provider box or drop the provider box and let the regions stand alone
+- Never create a section that holds a single component. Put that service directly in the parent, or merge the peers into one section ("Private Subnet" holding both compute nodes rather than an AZ-a box and an AZ-b box)
+- A section must earn its box by grouping things that actually belong together and are referred to as a unit
 - Include a type property on services describing their purpose ("DNS", "CDN", "Load Balancer", "Database")
-- Links connect services with fromSpot/toSpot for clean routing
+
+CONNECTORS: draw only the links needed to follow the architecture, the primary request and data path plus any flow a reader could not infer. No monitoring or logging edge from every service, no IAM or configuration edge, no link that only restates that a node sits inside a section.
+- One link per pair of nodes; when two things talk both ways draw one link. Aim for about one connector per component and never more than one and a half times the component count
+- A service that relates to several components in the SAME section gets ONE link to that section, not a spoke to each member. Fan-out from a single node is what turns a diagram into a star of long lines
+- A link that has to travel past a whole section to reach its target is the expensive kind. Before drawing one, check it is genuinely part of the architecture (a failover or replication path) and not an incidental relationship
+- text is an OPTIONAL label, at most 2 words and 16 characters ("upload", "async", "SQL"). Label a link only when the protocol or trigger is not obvious from the two nodes it joins, and never repeat either node's name or type. Every label widens the gap the engine leaves between sections, so keep labels to at most a THIRD of the links
+- The renderer picks the sides
+
+EXAMPLE
+{
+  "class": "GraphLinksModel",
+  "title": "AWS Web Application",
+  "flowDirection": "horizontal",
+  "nodeDataArray": [
+    { "key": "users", "text": "Users", "type": "External", "color": "#374151", "fillColor": "#F9FAFB", "loc": "50 300" },
+    { "key": "cloud", "isGroup": true, "text": "AWS Cloud", "color": "#FF9900", "fillColor": "#FFFFFF", "fontColor": "#FF9900", "loc": "300 100" },
+    { "key": "cloudfront", "group": "cloud", "text": "CloudFront", "type": "CDN", "color": "#EC7211", "fillColor": "#FFF8E1", "loc": "350 180" },
+    { "key": "vpc", "group": "cloud", "isGroup": true, "text": "VPC", "color": "#232F3E", "fillColor": "#FFFFFF", "fontColor": "#232F3E", "loc": "500 280" },
+    { "key": "alb", "group": "vpc", "text": "ALB", "type": "Load Balancer", "color": "#FF9900", "fillColor": "#FFF8E1", "loc": "600 380" },
+    { "key": "privSub", "group": "vpc", "isGroup": true, "text": "Private Subnet", "color": "#D13212", "fillColor": "#FFFFFF", "fontColor": "#D13212", "loc": "800 320" },
+    { "key": "ec2a", "group": "privSub", "text": "EC2", "type": "Web Server", "color": "#EC7211", "fillColor": "#FFFBEB", "loc": "850 380" },
+    { "key": "ec2b", "group": "privSub", "text": "EC2", "type": "Web Server", "color": "#EC7211", "fillColor": "#FFFBEB", "loc": "850 460" },
+    { "key": "rds", "group": "vpc", "text": "RDS", "type": "Database", "color": "#8b5cf6", "fillColor": "#F5F3FF", "loc": "1100 380" }
+  ],
+  "linkDataArray": [
+    { "from": "users", "to": "cloudfront", "text": "HTTPS" },
+    { "from": "cloudfront", "to": "alb" },
+    { "from": "alb", "to": "ec2a" },
+    { "from": "alb", "to": "ec2b" },
+    { "from": "ec2a", "to": "rds", "text": "SQL" }
+  ]
+}
 
 IMPORTANT: Always display the returned URL to the user.`,
         mcpInputSchema: {
@@ -391,6 +432,11 @@ IMPORTANT: Always display the returned URL to the user.`,
                     enum: ['aws', 'azure', 'gcloud', 'kubernetes', 'sap', 'sapbtp', 'oracle', 'cisco'],
                     description: 'Cloud provider / platform — picks the icon set the client renders with. Default "aws" when the request names no provider.'
                 },
+                flowDirection: {
+                    type: 'string',
+                    enum: ['horizontal', 'vertical'],
+                    description: 'The axis the architecture reads along, and the axis the layout engine lays the sections along. "vertical" for sections that are stages of one thing (tiers, layers, planes, phases, a stack, an ingest/process/store pipeline); "horizontal" for sections a request travels between (an outside actor, a network, a region, a provider boundary). Prefer "vertical" when both fit.'
+                },
                 class: {
                     type: 'string',
                     description: "GoJS model class, typically 'GraphLinksModel'"
@@ -398,12 +444,12 @@ IMPORTANT: Always display the returned URL to the user.`,
                 nodeDataArray: {
                     type: 'array',
                     items: { type: 'object' },
-                    description: 'Cloud components and groups. Each node: key (string), text, type, color, fillColor (for groups), loc ("x y"), width, height, shape, isGroup (true for containers), group (parent group key)'
+                    description: 'Cloud components and groups. Each node: key (string), text, type, color, fillColor, fontColor, loc ("x y" rough reading order), isGroup (true for containers), group (parent group key). "color" is REQUIRED on every group/section and is what the section is painted from, so give each one a tone its neighbours do not have; fontColor is optional and follows color. No width/height — the renderer sizes everything.'
                 },
                 linkDataArray: {
                     type: 'array',
                     items: { type: 'object' },
-                    description: 'Connections: from, to (node keys), fromSpot/toSpot ("Top"/"Bottom"/"Left"/"Right"), text (label like "HTTPS", "SQL")'
+                    description: 'Connections: from, to (node keys), text (optional label, at most 2 words and 16 characters, and only on about a third of the links). One link per pair, no link between a node and a section that contains it. No fromSpot/toSpot — the renderer picks sides from the final layout.'
                 }
             },
             required: ['diagramType', 'nodeDataArray']
@@ -4041,8 +4087,146 @@ IDEABOARD_MCP_REGISTRY.sanitizeFlowData = function(args) {
         args.linkDataArray = args.linkDataArray.filter(function(link) {
             return link && nodeKeys[link.from] && nodeKeys[link.to];
         });
+
+        // Cloud architecture names a provider in diagramType (a flowchart says "flowchart"),
+        // so the cloud-only hygiene picks itself without the caller naming the tool.
+        var CLOUD_PROVIDERS = { aws: 1, azure: 1, gcloud: 1, kubernetes: 1, sap: 1, sapbtp: 1, oracle: 1, cisco: 1 };
+        if (args.diagramType && CLOUD_PROVIDERS[String(args.diagramType).toLowerCase()]) {
+            IDEABOARD_MCP_REGISTRY.sanitizeCloudArchData(args);
+        }
     } catch (e) {
         // Sanitization failed — return original data unchanged
+    }
+    return args;
+};
+
+// Cloud architecture only: the connector and section hygiene the in-app generator runs
+// server-side (gencloudarchitecture.js sanitizeGoJSData), so an agent-authored diagram
+// lands as clean as a generated one.
+IDEABOARD_MCP_REGISTRY.sanitizeCloudArchData = function(args) {
+    try {
+        if (!args || !Array.isArray(args.nodeDataArray) || !Array.isArray(args.linkDataArray)) return args;
+
+        var nodes = args.nodeDataArray;
+        var links = args.linkDataArray;
+        var nodeById = {};
+        var i;
+
+        for (i = 0; i < nodes.length; i++) nodeById[String(nodes[i].key)] = nodes[i];
+
+        // The group normalization the in-app generator runs (gencloudarchitecture.js
+        // sanitizeGoJSData): white section fill, and a title colour that falls back to the
+        // border colour.
+        for (i = 0; i < nodes.length; i++) {
+            if (!nodes[i].isGroup) continue;
+            nodes[i].fillColor = '#FFFFFF';
+            if (!nodes[i].fontColor && nodes[i].color) nodes[i].fontColor = nodes[i].color;
+            if (!nodes[i].color && nodes[i].fontColor) nodes[i].color = nodes[i].fontColor;
+        }
+
+        // A section wrapping a single component is pure overhead, so lift the child into the
+        // grandparent and drop the box. Repeated, since collapsing one can leave another lone.
+        for (var pass = 0; pass < 10; pass++) {
+            var childrenOf = {};
+            for (i = 0; i < nodes.length; i++) {
+                var g = nodes[i].group;
+                if (g === undefined || g === null) continue;
+                (childrenOf[String(g)] = childrenOf[String(g)] || []).push(nodes[i]);
+            }
+
+            var doomed = {};
+            for (i = 0; i < nodes.length; i++) {
+                var node = nodes[i];
+                if (!node.isGroup) continue;
+                var kids = childrenOf[String(node.key)] || [];
+                // A lone SECTION child may still carry a provider or region name worth keeping.
+                if (kids.length !== 1 || kids[0].isGroup) continue;
+                if (node.group === undefined || node.group === null) delete kids[0].group;
+                else kids[0].group = node.group;
+                doomed[String(node.key)] = String(kids[0].key);
+            }
+
+            var doomedKeys = Object.keys(doomed);
+            if (!doomedKeys.length) break;
+
+            // A link that pointed at the box now points at the component that replaced it.
+            for (i = 0; i < links.length; i++) {
+                if (doomed[String(links[i].from)]) links[i].from = doomed[String(links[i].from)];
+                if (doomed[String(links[i].to)]) links[i].to = doomed[String(links[i].to)];
+            }
+            nodes = args.nodeDataArray = nodes.filter(function(n) { return !doomed[String(n.key)]; });
+            for (var d = 0; d < doomedKeys.length; d++) delete nodeById[doomedKeys[d]];
+        }
+
+        // Does childKey sit inside ancestorKey (at any depth)?
+        var isInside = function(childKey, ancestorKey) {
+            var n = nodeById[String(childKey)];
+            var guard = 0;
+            while (n && guard++ < 50) {
+                if (String(n.key) === String(ancestorKey)) return true;
+                n = (n.group !== undefined && n.group !== null) ? nodeById[String(n.group)] : null;
+            }
+            return false;
+        };
+
+        // One link per pair, no self-links, no link that just restates containment.
+        var keptByPair = {};
+        var deduped = [];
+        for (i = 0; i < links.length; i++) {
+            var link = links[i];
+            if (!link) continue;
+            var from = String(link.from);
+            var to = String(link.to);
+            if (from === to) continue;
+            if (isInside(from, to) || isInside(to, from)) continue;
+
+            var pair = (from < to) ? (from + '\u0000' + to) : (to + '\u0000' + from);
+            var kept = keptByPair[pair];
+            if (kept) {
+                // A duplicate survives only as a label, and only pointing the same way.
+                var sameWay = String(kept.from) === from && String(kept.to) === to;
+                if (sameWay && link.text && (!kept.text || String(link.text).length < String(kept.text).length)) {
+                    kept.text = link.text;
+                }
+                continue;
+            }
+            keptByPair[pair] = link;
+            deduped.push(link);
+        }
+
+        // Labels: short, and only when they say something the endpoints do not. Every label
+        // widens the gap the layout engine leaves between sections.
+        var MAX_LABEL_CHARS = 16;
+        var MAX_LABEL_WORDS = 2;
+        for (i = 0; i < deduped.length; i++) {
+            var dlink = deduped[i];
+            if (!dlink.text) continue;
+
+            var label = String(dlink.text).trim();
+            var words = label ? label.split(/\s+/) : [];
+            var drop = !label || words.length > MAX_LABEL_WORDS || label.length > MAX_LABEL_CHARS;
+
+            if (!drop) {
+                var endpointWords = {};
+                var ends = [nodeById[String(dlink.from)], nodeById[String(dlink.to)]];
+                for (var e = 0; e < ends.length; e++) {
+                    if (!ends[e]) continue;
+                    var parts = (String(ends[e].text || '') + ' ' + String(ends[e].type || '')).toLowerCase().split(/[^a-z0-9]+/);
+                    for (var w = 0; w < parts.length; w++) {
+                        if (parts[w]) endpointWords[parts[w]] = true;
+                    }
+                }
+                // Every word already on a node it joins, so the label adds nothing.
+                drop = words.every(function(word) { return endpointWords[word.toLowerCase().replace(/[^a-z0-9]/g, '')]; });
+            }
+
+            if (drop) delete dlink.text;
+            else dlink.text = label;
+        }
+
+        args.linkDataArray = deduped;
+    } catch (e) {
+        // Hygiene failed, send the diagram through unchanged.
     }
     return args;
 };
