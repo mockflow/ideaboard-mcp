@@ -1174,6 +1174,20 @@ Sticky note colours are the note component's own swatches, the same swatch twice
   tx: "P1", ta: "center", fs: 12, fcl: "#92400e", fw: "bold", fst: "normal", td: "none", fnt: "sourcesanspro"
 }
 
+6. MF_ConnectorPath (An arrow joining two components):
+{
+  t: "MF_ConnectorPath", from: "rect1", to: "rect2", tx: "yes",
+  arrowType: "stepcurve", arrowColor: "#444444", arrowThickness: 1
+}
+"from" and "to" are the "e" ids of components in this same payload, and the board routes the line between them, so a connector carries NO x, y, w, h, a, an, hd, ij or fnt. "tx" is the label on the line, "" when unlabelled. arrowType: "stepcurve" | "stepline" | "curve" | "line". A connector naming an id you did not send is dropped. Use it for every arrow, branch or "leads to" relationship: never draw one as a thin rectangle.
+
+7. Charts (MF_PieChart2, MF_VerticalBarChart, MF_HorizontalBarChart, MF_HorizontalLineChart, MF_AreaChart, MF_ScatterChart, MF_BubbleChart, MF_RadarChart):
+{
+  t: "MF_VerticalBarChart", x: 100, y: 400, w: 480, h: 320, a: 0, e: "chart1", an: false, hd: false, ij: "",
+  title: "Revenue by quarter", tx: "Legends,2025,2026\\nQ1,45,37\\nQ2,27,30"
+}
+"tx" carries the plotted data and "title" the heading; charts take no colour or font properties. Data formats: MF_PieChart2 "Label 1,Label 2\\n20,15" (labels row then values row); MF_VerticalBarChart / MF_HorizontalBarChart / MF_HorizontalLineChart / MF_AreaChart / MF_RadarChart "Legends,Category 1,Category 2\\nLabel 1,45,37"; MF_ScatterChart "Label,X,Y\\nPlot 1,14,125"; MF_BubbleChart "Labels,x,y,r\\nPlot 1,14,125,4". Size them 320-600 wide by 240-420 high. Anything that plots values is a chart component, never a stack of rectangles.
+
 LAYOUT GUIDELINES:
 - MF_Section: 300-800px wide, 200-600px high
 - MF_Note2: 120-200px wide, 80-150px high
@@ -1193,14 +1207,14 @@ IMPORTANT: Always display the returned URL to the user.`,
             properties: {
                 components: {
                     type: 'object',
-                    description: "Whiteboard components with 'c' array containing MF_Section, MF_Note2, MF_Text elements",
+                    description: "Whiteboard components with 'c' array containing MF_Section, MF_Note2, MF_Text, shapes, MF_ConnectorPath arrows and chart elements",
                     properties: {
                         c: {
                             type: 'array',
                             items: {
                                 type: 'object',
                                 properties: {
-                                    t: { type: 'string', description: 'Component type: MF_Section, MF_Note2, MF_Text' },
+                                    t: { type: 'string', description: 'Component type: MF_Section, MF_Note2, MF_Text, MF_Rectangle2, MF_Circle2, MF_ConnectorPath, or a chart (MF_PieChart2, MF_VerticalBarChart, MF_HorizontalBarChart, MF_HorizontalLineChart, MF_AreaChart, MF_ScatterChart, MF_BubbleChart, MF_RadarChart)' },
                                     x: { type: 'number' },
                                     y: { type: 'number' },
                                     w: { type: 'number' },
@@ -1226,7 +1240,13 @@ IMPORTANT: Always display the returned URL to the user.`,
                                     br: { type: 'array', items: { type: 'number' }, description: 'Corner radii [all, tl, tr, br, bl]' },
                                     bw: { type: 'array', items: { type: 'number' }, description: 'Border widths [all, top, right, bottom, left]' },
                                     bt: { type: 'array', items: { type: 'string' }, description: 'Border types [all, top, right, bottom, left]' },
-                                    bc: { type: 'array', items: { type: 'string' }, description: 'Border colours [all, top, right, bottom, left]' }
+                                    bc: { type: 'array', items: { type: 'string' }, description: 'Border colours [all, top, right, bottom, left]' },
+                                    from: { type: 'string', description: 'MF_ConnectorPath ONLY: the "e" id of the component the arrow starts at' },
+                                    to: { type: 'string', description: 'MF_ConnectorPath ONLY: the "e" id of the component the arrow points to' },
+                                    arrowType: { type: 'string', enum: ['stepcurve', 'stepline', 'curve', 'line'], description: 'MF_ConnectorPath ONLY: line routing, "stepcurve" for most boards' },
+                                    arrowColor: { type: 'string', description: 'MF_ConnectorPath ONLY: line colour, hex' },
+                                    arrowThickness: { type: 'number', description: 'MF_ConnectorPath ONLY: line thickness 1-3' },
+                                    title: { type: 'string', description: 'Chart components ONLY: the chart heading' }
                                 }
                             }
                         }
