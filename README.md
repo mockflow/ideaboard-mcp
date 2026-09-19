@@ -128,6 +128,8 @@ The server creates a new IdeaBoard and returns the URL. Open it in your browser 
 | `render_database` | Entity-relationship (ER) diagrams with tables, columns, and foreign keys |
 | `render_swimlane` | Cross-functional swimlane diagrams with actor lanes |
 | `render_map` | Geographic maps with location markers and coordinates |
+| `render_treediagram` | Sitemaps, org charts, hierarchy trees and work breakdown structures |
+| `render_floorplan` | Floor plans: rooms, doors, windows and furniture on a grid (call once with no rooms to get the stamp catalog, then with the plan) |
 | `render_markdown` | Rich documents with markdown formatting and AI-generated images |
 
 ## How It Works

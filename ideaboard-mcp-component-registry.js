@@ -50,8 +50,8 @@ var IDEABOARD_MCP_REGISTRY = [
         // Declare-menu line: the menu reads ONE sentence per tool, and this family's
         // disambiguators must be in it — buried in sentence 2 of the description they
         // never reach the menu and the broad first sentence shades out the siblings.
-        mcpDeclareLine: 'Flowcharts and process/technical diagrams — flow, UML, sequence, bio/medical, circuit, P&ID, sketchy, 3D isometric, web/mobile layout structure, plus org charts and other hierarchy trees (a "chart" with no values to plot is a diagram, not render_chart) — but NOT swimlane lane-per-role diagrams (render_swimlane), NOT AWS/Azure/GCP/Kubernetes cloud infrastructure (render_cloudarchitecture), and NOT database/ER schemas (render_database).',
-        mcpDescription: `Create diagrams including: Flowcharts, Sketchy Diagrams, 3D Isometric Diagrams, Bio/Medical Diagrams, Circuit Diagrams, P&ID Diagrams, UML Diagrams, Sketchy UML, Sequence Diagrams, Cloud Isometric Diagrams, Web Layout Diagrams, Mobile Layout Diagrams, and Organizational Charts (org chart, reporting structure, hierarchy tree, family tree). NOT for cross-functional/swimlane (lane-per-role) diagrams — use render_swimlane; NOT for AWS/Azure/GCP cloud infrastructure — use render_cloudarchitecture; NOT for database/ER schemas — use render_database.
+        mcpDeclareLine: 'Flowcharts and process/technical diagrams — flow, UML, sequence, bio/medical, circuit, P&ID, sketchy, 3D isometric, web/mobile layout structure — but NOT org charts/sitemaps/hierarchy trees (render_treediagram), NOT swimlane lane-per-role diagrams (render_swimlane), NOT AWS/Azure/GCP/Kubernetes cloud infrastructure (render_cloudarchitecture), and NOT database/ER schemas (render_database).',
+        mcpDescription: `Create diagrams including: Flowcharts, Sketchy Diagrams, 3D Isometric Diagrams, Bio/Medical Diagrams, Circuit Diagrams, P&ID Diagrams, UML Diagrams, Sketchy UML, Sequence Diagrams, Cloud Isometric Diagrams, Web Layout Diagrams, and Mobile Layout Diagrams. NOT for org charts, sitemaps, family trees or other single-rooted hierarchy trees — use render_treediagram; NOT for cross-functional/swimlane (lane-per-role) diagrams — use render_swimlane; NOT for AWS/Azure/GCP cloud infrastructure — use render_cloudarchitecture; NOT for database/ER schemas — use render_database.
 
 CATEGORY (CRITICAL) - You MUST include a "category" field:
 - "default": General flowcharts, business processes, software flows. Uses standard shapes - NO matchKey needed
@@ -270,6 +270,123 @@ IMPORTANT: Always display the returned URL to the user.`,
         recipeOutputKeys: ['mindmap', 'brainstorm']
     },
     {
+        mcpToolName: 'render_treediagram',
+        mcpDeclareLine: 'Single-rooted top-down hierarchy trees — sitemaps/website page structure, org charts/reporting structures (a "chart" with no values to plot), family trees, taxonomies, folder structures, and work breakdown structures (WBS) — NOT process flows or decision trees (render_flowchart), NOT radial mind maps (render_mindmap).',
+        // Real-world/current data component: the local agent may web-research first.
+        webResearch: true,
+        mcpDescription: `Create a top-down hierarchy tree diagram. Four categories: "sitemap" (website page hierarchy), "orgchart" (reporting structure of people/teams), "tree" (generic hierarchy: taxonomy, family tree, folder structure), "wbs" (project work breakdown structure).
+
+STRUCTURE RULES:
+- Include top-level "title" — a short name for the diagram (3-8 words) shown as the frame header; it names the SUBJECT ("Online Bookstore Sitemap"), not the root node ("Home")
+- Include top-level "category": "sitemap" | "orgchart" | "tree" | "wbs"
+- Single-rooted top-down tree: root node has "root": true
+- Each node needs unique "id" (string) and "name" (no emojis)
+- Use "children" array for child nodes (empty array if none)
+
+CATEGORY-SPECIFIC NODE FIELDS:
+- sitemap: "url" required per node (relative path like "/about"; root is "/"); optional "blocks" array of { "name": "Section" } for a page's main content sections
+- orgchart: "name" is the POSITION TITLE (like "CEO"); never invent person names — use one only when the user provides it. Optional "role" descriptor and "department"
+- tree: optional short "note" per node; nothing else
+- wbs: optional "owner" (team or role, never an invented person name) per node; do NOT put outline numbers in names (numbering is derived automatically)
+
+CONTENT GUIDELINES:
+- Model what a real example of this kind would have (real navigation, realistic reporting lines, sensible phases)
+- Main branches with their key children, without exhaustive deep nesting
+
+EXAMPLE STRUCTURE (category "orgchart"):
+{
+  "title": "Product Company Org Chart",
+  "category": "orgchart",
+  "nodeData": {
+    "id": "root",
+    "name": "CEO",
+    "root": true,
+    "children": [
+      { "id": "p1", "name": "CTO", "department": "Engineering", "children": [
+        { "id": "p2", "name": "Engineering Manager", "department": "Engineering", "children": [] }
+      ]},
+      { "id": "p3", "name": "CFO", "department": "Finance", "children": [] }
+    ]
+  }
+}
+
+IMPORTANT: Always display the returned URL to the user.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                title: {
+                    type: 'string',
+                    description: 'A short title for the diagram, shown as the frame header (e.g. "Online Bookstore Sitemap").'
+                },
+                category: {
+                    type: 'string',
+                    enum: ['sitemap', 'orgchart', 'tree', 'wbs'],
+                    default: 'sitemap',
+                    description: 'Diagram flavor: sitemap (website pages), orgchart (reporting structure), tree (generic hierarchy), wbs (work breakdown)'
+                },
+                nodeData: {
+                    type: 'object',
+                    description: 'Root node with id, name, root=true, category-specific fields, and children array',
+                    properties: {
+                        id: { type: 'string' },
+                        name: { type: 'string' },
+                        url: { type: 'string', description: 'sitemap only: relative page path like "/about"; root page is "/"' },
+                        role: { type: 'string', description: 'orgchart only: job title' },
+                        department: { type: 'string', description: 'orgchart only: organizational unit' },
+                        note: { type: 'string', description: 'tree only: short note line' },
+                        owner: { type: 'string', description: 'wbs only: responsible team or role; a person\'s name only when the user provides it' },
+                        root: { type: 'boolean' },
+                        blocks: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: { type: 'string' }
+                                }
+                            },
+                            description: 'sitemap only: page content sections'
+                        },
+                        children: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: { type: 'string' },
+                                    name: { type: 'string' },
+                                    url: { type: 'string' },
+                                    role: { type: 'string' },
+                                    department: { type: 'string' },
+                                    note: { type: 'string' },
+                                    owner: { type: 'string' },
+                                    blocks: {
+                                        type: 'array',
+                                        items: { type: 'object' },
+                                        description: 'sitemap only: page content sections'
+                                    },
+                                    children: {
+                                        type: 'array',
+                                        items: { type: 'object' },
+                                        description: 'Nested child nodes'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            required: ['nodeData']
+        },
+
+        // Client-side rendering (showResults gdata mapping)
+        clientAitype: 'gencomp',
+        clientComp: 'MF_TreeDiagram_ID',
+        clientDataField: 'generatedtree',
+        clientPrompt: 'sitemap',
+        clientPromptField: 'category',  // dynamic: uses args.category || clientPrompt
+        clientTransform: null,  // null = JSON.stringify(args) — keeps category in the payload for applyData
+        recipeOutputKeys: ['sitemap', 'orgchart', 'treediagram', 'wbs']
+    },
+    {
         mcpToolName: 'render_knowledgegraph',
         // Real-world/current data component: the local agent may web-research first.
         webResearch: true,
@@ -282,6 +399,11 @@ STRUCTURE RULES:
 - Central concepts: weight 5-8, supporting: 3-4, details: 1-2
 - Make the graph connected — avoid isolated nodes
 
+LABEL LENGTH (the canvas is small — every label is drawn on it):
+- Node labels: 1-3 words, under 24 characters. A label that does not fit inside its bubble is pushed underneath it and cut off after two lines
+- Edge labels: 1-2 words, under 16 characters — never a phrase like "removes emissions through"
+- Leave an edge label as "" whenever the relationship is obvious from the two nodes it connects; labelling every edge crowds the graph
+
 EXAMPLE:
 {
   "nodes": [
@@ -293,7 +415,7 @@ EXAMPLE:
   "edges": [
     { "id": "e1", "from": "n1", "to": "n2", "label": "includes" },
     { "id": "e2", "from": "n1", "to": "n3", "label": "relates to" },
-    { "id": "e3", "from": "n2", "to": "n4", "label": "specifies" }
+    { "id": "e3", "from": "n2", "to": "n4", "label": "" }
   ]
 }
 
@@ -303,7 +425,7 @@ IMPORTANT: Always display the returned URL to the user.`,
             properties: {
                 nodes: {
                     type: 'array',
-                    description: 'Array of nodes with id, label, and weight (1-8)',
+                    description: 'Array of nodes with id, label, and weight (1-8). Labels are 1-3 words, under 24 characters — longer text is pushed under the bubble and cut off after two lines.',
                     items: {
                         type: 'object',
                         properties: {
@@ -316,7 +438,7 @@ IMPORTANT: Always display the returned URL to the user.`,
                 },
                 edges: {
                     type: 'array',
-                    description: 'Array of edges with id, from, to, and label',
+                    description: 'Array of edges with id, from, to, and label. Edge labels are 1-2 words, under 16 characters, and are left as "" when the relationship is obvious — a label on every edge crowds the canvas.',
                     items: {
                         type: 'object',
                         properties: {
@@ -793,7 +915,7 @@ EMOJI GUIDELINES:
 - Examples: For "hotel locations" use 🏨 for all, for "restaurants" use 🍽️ for all, for "offices" use 🏢 for all
 
 CONTENT GUIDELINES:
-- Create 3-8 relevant locations based on the topic
+- Create 3-8 relevant locations by default. When the request says how many — a total, or a count per group like "4 per continent" — honor that count instead, up to 40 markers total
 - Ensure descriptions are concise but informative (20-60 characters)
 
 EXAMPLE — COUNTRY-LEVEL (e.g. "top populated countries"):
@@ -1033,6 +1155,146 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientPromptField: null,
         clientTransform: null,
         recipeOutputKeys: ['strategymap']
+    },
+    {
+        mcpToolName: 'render_floorplan',
+        mcpDescription: `Create a FLOOR PLAN — a top-down spatial layout of a building or space: rooms (axis-aligned rectangles sharing walls), doors, windows, furniture stamps from a fixed catalog, and short text labels, all on a grid.
+
+USE THIS FOR how a physical space is divided and furnished: apartments, houses, offices and desk layouts, shops and retail floors, cafés/restaurants, clinics, classrooms, trade-show booths, event venues, room-by-room furniture layouts.
+DO NOT USE THIS for UI or screen layouts (use render_wireframe / render_design), for diagrams or org/site structures, or for anything on real geography (use render_map / render_strategymap). It is not a seating chart table.
+
+UNITS: everything is in GRID UNITS, 1 unit = 0.5 m (a 4 m × 3 m room is 8 × 6). Integers or .5 values only. Origin top-left; x grows right, y grows DOWN. x,y of a room or furniture item is its TOP-LEFT corner.
+
+STRUCTURE:
+- title: short plan name
+- planType: "apartment" | "house" | "office" | "retail" | "event" | "other"
+- theme: "soft" | "blueprint" | "marker" — the drawing style. Follow what the user asks for ("blueprint"/"technical" → blueprint, "sketch"/"hand-drawn" → marker); with nothing asked pick what suits the space: soft for homes, offices and shops, blueprint for architectural or construction work, marker for quick event and booth layouts.
+- rooms: [{ id, label, type, x, y, w, h }] — type is one of living | bedroom | kitchen | dining | bath | office | hall | storage | outdoor | other. Rooms are axis-aligned rectangles that must NOT overlap and must TILE the outline so neighbours SHARE walls (right edge x+w of one equals x of the next; y+h equals y of the room below). Realistic sizes: bedroom 6–8 × 6–8, living 8–12 × 6–10, kitchen 5–8 × 4–6, bath 4×4 to 4×6, corridor 2–3 wide, meeting room 6–10 × 6–8.
+- items: [{ id, asset, x, y, r, w, h }] — asset is EXACTLY one key from the catalog answered in step 1 (never invent one); r is rotation 0 | 90 | 180 | 270 (footprint w×h is for r=0). w and h are OPTIONAL: this piece's own footprint in grid units when it should differ from the catalog size (multiples of 0.25, at least half the catalog side, at most three times it or 8 units, whichever is larger; doors and windows take only w, their length along the wall, and so does any key marked "keeps proportions", whose height follows its width and stays within half to one and a half times the catalog side). Leave them out for the normal size.
+  • FURNITURE: x,y is the top-left corner and the whole footprint must lie INSIDE one room; items must not overlap.
+  • DOORS and WINDOWS: x,y is the START POINT ON THE WALL LINE; r=0 sits on a horizontal wall running toward +x, r=90 on a vertical wall running toward +y. Doors go on walls SHARED by two rooms plus exactly ONE entrance door on the outer wall; windows go on OUTER walls only. A swing door (door-single, door-double) sweeps a square as deep as it is wide into the room it opens to (r=0 swings +y, r=90 swings -x, flip mirrors): keep that square free of furniture (door near a corner, furniture on the other walls), or use door-sliding.
+- labels: [{ id, text, x, y }] — optional short notes at a free point (e.g. "entry"); never repeat a room label or the title.
+- ids: rooms "r1","r2"…, items "i1","i2"…, labels "l1","l2"… — unique within the plan.
+
+ASSET CATALOG — TWO STEPS. The stamp catalog lives on MockFlow's CDN and grows over time, so it is not listed here. STEP 1: call this tool with NO rooms (empty arguments) and it answers with the current catalog: every key with its footprint, grouped by category. STEP 2: call it again with the finished plan, using ONLY keys from that answer. Step 1 is needed once per conversation, not before every plan.
+
+CONTENT GUIDELINES:
+- Start from the OUTLINE (e.g. 20 × 16 units for an 80 m² apartment) and split it into rooms with shared walls — no gaps, no overlaps.
+- Homes: 4–12 rooms. Offices, shops and venues: as many zones as needed (an open-plan area is one "office" room; a booth is one "other" room).
+- Furnish every room for its purpose with realistic footprints (bed + nightstand + wardrobe; counter run with sink/stove/fridge along a wall; toilet + washbasin + shower/bathtub; sofa + coffee table + tv; desks / desk clusters, meeting tables, whiteboards; display shelves + reception-desk as checkout). Roughly 10–40 items for a home, up to ~80 for a large office or shop. Leave walking space.
+
+EXAMPLE:
+{
+  "title": "Studio Apartment",
+  "planType": "apartment",
+  "theme": "soft",
+  "rooms": [
+    { "id": "r1", "label": "Living / Sleeping", "type": "living",  "x": 0,  "y": 0, "w": 12, "h": 8 },
+    { "id": "r2", "label": "Kitchen",           "type": "kitchen", "x": 12, "y": 0, "w": 6,  "h": 4 },
+    { "id": "r3", "label": "Bathroom",          "type": "bath",    "x": 12, "y": 4, "w": 6,  "h": 4 }
+  ],
+  "items": [
+    { "id": "i1", "asset": "door-single",  "x": 5,    "y": 8,   "r": 0 },
+    { "id": "i2", "asset": "door-single",  "x": 12,   "y": 5,   "r": 90 },
+    { "id": "i3", "asset": "window-wide",  "x": 4,    "y": 0,   "r": 0 },
+    { "id": "i4", "asset": "bed-double",   "x": 0.5,  "y": 0.5, "r": 0 },
+    { "id": "i5", "asset": "sofa-2seat",   "x": 7,    "y": 5,   "r": 0 },
+    { "id": "i6", "asset": "counter",      "x": 12,   "y": 0,   "r": 0 },
+    { "id": "i7", "asset": "sink",         "x": 13,   "y": 0,   "r": 0 },
+    { "id": "i8", "asset": "stove",        "x": 14,   "y": 0,   "r": 0 },
+    { "id": "i9", "asset": "toilet",       "x": 12.5, "y": 4.5, "r": 0 },
+    { "id": "i10","asset": "shower",       "x": 15.5, "y": 5.5, "r": 0 }
+  ],
+  "labels": [ { "id": "l1", "text": "entry", "x": 5, "y": 7 } ]
+}
+
+IMPORTANT: Always display the returned URL to the user.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                title: {
+                    type: 'string',
+                    description: 'Short name of the plan (e.g. "Two-bedroom Apartment") — displayed as the frame title'
+                },
+                planType: {
+                    type: 'string',
+                    enum: ['apartment', 'house', 'office', 'retail', 'event', 'other'],
+                    description: 'Kind of space the plan describes'
+                },
+                theme: {
+                    type: 'string',
+                    enum: ['soft', 'blueprint', 'marker'],
+                    description: 'Drawing style the plan is rendered in; follow the style the user asked for, otherwise pick the one that suits the space'
+                },
+                rooms: {
+                    type: 'array',
+                    description: 'Axis-aligned rectangular rooms in grid units (1 unit = 0.5 m) that tile the outline with shared walls and never overlap. Leave out (or send empty) to receive the current asset catalog instead of drawing',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string', description: 'Unique id, "r1", "r2", …' },
+                            label: { type: 'string', description: 'Room name shown in the room (e.g. "Bedroom 1")' },
+                            type: { type: 'string', enum: ['living', 'bedroom', 'kitchen', 'dining', 'bath', 'office', 'hall', 'storage', 'outdoor', 'other'], description: 'Room type; drives the theme colour' },
+                            x: { type: 'number', description: 'Left edge in grid units (integer or .5)' },
+                            y: { type: 'number', description: 'Top edge in grid units (integer or .5); y grows down' },
+                            w: { type: 'number', description: 'Width in grid units (> 0)' },
+                            h: { type: 'number', description: 'Height in grid units (> 0)' }
+                        },
+                        required: ['id', 'label', 'type', 'x', 'y', 'w', 'h']
+                    }
+                },
+                items: {
+                    type: 'array',
+                    description: 'Furniture, door and window stamps from the fixed catalog',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string', description: 'Unique id, "i1", "i2", …' },
+                            asset: { type: 'string', description: 'Catalog key exactly as returned by the step-1 catalog call (this tool called with no rooms)' },
+                            x: { type: 'number', description: 'Furniture: top-left x inside a room. Door/window: start point x on the wall line' },
+                            y: { type: 'number', description: 'Furniture: top-left y inside a room. Door/window: start point y on the wall line' },
+                            r: { type: 'number', enum: [0, 90, 180, 270], description: 'Rotation in degrees; for doors/windows 0 = horizontal wall (runs +x), 90 = vertical wall (runs +y)' },
+                            w: { type: 'number', description: 'Optional own width in grid units when this piece should differ from the catalog footprint (multiples of 0.25, at least half the catalog side, at most three times it or 8 units, whichever is larger; keys marked keeps proportions stay within half to one and a half times); for doors/windows this is the length along the wall' },
+                            h: { type: 'number', description: 'Optional own height in grid units, same rules as w; ignored for doors/windows and for keys marked "keeps proportions"' }
+                        },
+                        required: ['id', 'asset', 'x', 'y']
+                    }
+                },
+                labels: {
+                    type: 'array',
+                    description: 'Optional short text notes placed at free points',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string', description: 'Unique id, "l1", "l2", …' },
+                            text: { type: 'string', description: 'Note text (a few words)' },
+                            x: { type: 'number', description: 'x in grid units' },
+                            y: { type: 'number', description: 'y in grid units' }
+                        },
+                        required: ['id', 'text', 'x', 'y']
+                    }
+                }
+            },
+            required: ['rooms']
+        },
+
+        // Client-side rendering (showResults gdata mapping). MF_FloorPlan_ID.sendGenText reads
+        // JSON.parse(gentext.data.generatedfloorplan), so a null transform (which stringifies the
+        // whole args object into that field) is exactly right — same pattern as render_strategymap.
+        clientAitype: 'gencomp',
+        clientComp: 'MF_FloorPlan_ID',
+        clientDataField: 'generatedfloorplan',
+        clientPrompt: 'floorplan',
+        clientPromptField: null,
+        clientTransform: null,
+        recipeOutputKeys: ['floorplan'],
+
+        // Step 1 of the two-step call: no rooms means "send me the catalog"
+        mcpDirectReply: function(args) {
+            var rooms = args && args.rooms;
+            if (Array.isArray(rooms) && rooms.length) return null;
+            return floorPlanCatalogReply();
+        }
     },
     {
         mcpToolName: 'render_spreadsheet',
@@ -2379,7 +2641,87 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientFillContract: 'render_datasimulator ships a runnable MODEL, not a picture of results: parameters are live levers and every outcome must emerge from the rules executing step by step — never bake a guessed outcome or a precomputed series into the data, and every parameter must meaningfully change the outcome when dragged. A "no imagery" rule means nothing here (the spec has no image slots) — never respond with fewer views or a plainer model. When filling a tile that already has a simulation, keep ids stable and preserve the user\'s current parameter values.',
     },
     {
+        // The artifact's DRAWING PASS. A local agent that writes the whole app treats the
+        // drawing as a sliver of the job and ships a stroke and a circle, so the bridge
+        // runs this tool first on its own short turn (clientPrePass on render_artifact):
+        // the agent's only job there is app/pieces.js, and the bridge adds that file to
+        // the render_artifact call that follows. captureOnly: the bridge keeps the
+        // arguments and draws nothing; the tool is offered only during that pass.
+        // The brief is the same text as genartifact.js PIECES_BRIEF (keep in step).
+        mcpToolName: 'draw_pieces',
+        bridgeOnly: true,
+        captureOnly: true,
+        clientPrePassPrompt: 'Call draw_pieces ONCE with EXACTLY this shape: {"files": {"app/pieces.js": "<the complete file: window.App = window.App || {}; App.pieces = { ...one drawing function per kind, each returning an inline SVG string... }"}, "api": [{"name":"card","signature":"card(rank, suit, faceUp)","purpose":"one playing card"}, {"name":"boardLayout","signature":"boardLayout(cells)","purpose":"cell geometry {aspect, cells:[{id,x,y,w,h}]}"}]} — or exactly {"none": true} when the app shows nothing with a look of its own (a todo list, poll, form, table or kanban has NO pieces). No other keys: not "pieces", not a screen or layout tree, not HTML — this tool takes JavaScript source for app/pieces.js and nothing else.',
+        mcpDescription: `Write the drawing file (app/pieces.js) for the MockFlow artifact that is about to be built from the user's request. Call this ONCE with the complete file and the list of functions it defines, then stop; the file is added to the app automatically.
+
+You are the ILLUSTRATOR for this app, and you write ONE file: app/pieces.js. Nothing else — no app logic, no state, no layout, no other files.
+
+The file defines window.App = window.App || {}; App.pieces = { ... }: one drawing function per kind of object the app shows, exactly the functions the plan's "pieces" list names, with those signatures. Each returns a complete inline SVG string (<svg viewBox="…" …>…</svg>, width/height 100% so the caller sizes it) that the app drops into its markup. Pure functions: parameters in, string out, no DOM access, no state, no side effects, so they are safe inside MFArtifact.render and can be called any number of times.
+
+THE APP OWNS THE CONTENT, THE DRAWING OWNS THE LOOK: what a drawing shows comes in through its parameters — which cells hold which piece, which squares a snake or ladder connects, where the tokens stand, what the die shows — and the drawing renders exactly that, at the cells it names. A drawing never invents game content: a board function that places its own snakes, ladders, pieces or markers at positions it chose shows something the app's rules do not know, and the app then plays one game while the picture shows another (observed: the snake bit on a square where no snake was drawn). When the plan's signature leaves content out (gameBoard() with no jumps), add the parameter and report it in the api.
+
+A SURFACE EXPORTS ITS GEOMETRY: every drawing with cells, slots, seats or lanes (a board, grid, rack, track, table) comes with a companion function <name>Layout(the same parameters that shape the grid) returning { aspect, cells: [ { id, x, y, w, h } ] }, where aspect is the drawing's width divided by its height, each cell box is a FRACTION 0-1 of the drawing's own width and height, and id is THE CELL'S OWN IDENTITY AS THE SURFACE DRAWS IT — the number printed on the square (the id of square 27 is 27, whatever row it lies in or which way that row runs), the coordinate name of a chess square, or "row,col" from the top-left when cells carry no label — so the app looks a cell up by id and never recomputes the surface's numbering itself (observed: the app counted rows from the top and ignored the zigzag, and the pawn stood on a mirrored square). The app gives the drawing ONE box with that aspect ratio (CSS aspect-ratio, width OR height constrained, never both 100% — a box of another shape letterboxes the picture, and every layer over it lands beside the cells) and places pawns, discs, hit areas and highlights inside that same box from those fractions, so nothing sits at a guessed percentage; frames, margins and feet are part of the drawing and so inside that geometry. Pieces the app moves (a disc, a pawn, a token) are separate functions from the surface, so the app can position and animate each over it.
+
+A CONNECTOR HAS A DIRECTION: anything drawn between two cells (a snake, a ladder, an arrow, a path, a wire) takes the cells in the order the app's rules use them — first the cell where the effect is entered (the square a player lands on: the snake's HEAD, the ladder's FOOT, an arrow's tail), then the cell it leads to (the snake's tail, the ladder's top, the arrowhead) — and the drawing puts the recognizable entry end at the first cell (observed: every snake drawn with its head at the tail square, so the player was bitten on a square showing a tail). When the app passes {from, to}, from is the entry.
+
+A PIECE NEVER PLACES ITSELF: a piece function draws ONE object filling its own small viewBox (the pawn, the disc, the card) and nothing else — no board coordinates, no translate to a square, no full-board viewBox with the object somewhere inside it. Where it sits is the app's decision, made from the surface's Layout fractions; a drawing that also positions itself is placed twice and lands on the wrong square (observed: a pawn drawn at its square inside a board-sized SVG that the app had already moved to that square). If the plan's signature hands a piece a board position, ignore that parameter for placement (it may only pick a variant, never move the drawing) and say so in the api.
+
+DRAW THE REAL THING. A drawn object has body, edge and detail: a filled shape with an outline, plus the parts and markings a person recognizes that object by — its silhouette, its face or front, what distinguishes one of its kind from another — with gradients, highlights or shadows where the real thing has volume (use <defs> with <linearGradient>/<radialGradient> and reuse them). Ask what someone would name the object by at a glance and draw those things. Build from real paths, curves, ellipses and groups; give a long or flexible object a path that actually bends, a patterned surface a real pattern (<pattern> or repeated elements), a set (ranks, values, faces) one function whose parameters produce every member consistently. Never a single stroke, a plain line, a flat rectangle or a text label standing in for the object — that is the placeholder this file exists to replace. Aim for the quality of a polished board game or app icon set: clean, consistent stroke weights, one palette across all pieces, crisp at any size.
+
+IDS ARE UNIQUE PER INSTANCE: every instance a function returns lands in the same document, so an id on a gradient, filter, pattern, mask or clipPath must be unique per call — build it from a per-call counter or the parameters (e.g. 'disc-' + color + '-' + (++n)) and reference it the same way in url(#…), or the first instance's definition is used by all of them (every disc red, whatever the call asked for). The upload is rejected for a fixed id.
+
+Output the complete file. Every function the plan lists must exist with the stated name and signature, plus any content parameter the rule above adds and every Layout companion. Draw only what is asked for: no decorative extras, and nothing for a plain UI.
+
+First decide, from the request, whether the app shows anything with a look of its own at all. A checklist, poll, timer, form, table, kanban, retro board or note wall has NO pieces: its UI is markup, icons and type, and decorative art for it is a defect — for such an app call this tool with {"none": true} and no files, and nothing is drawn. Otherwise name the kinds of objects the app shows AS objects (playing pieces, cards, tokens, boards, characters, instruments, items — anything a person recognizes by how it looks), give each ONE function with the parameters the drawing needs (rank, suit, color, value, size, state) — a surface takes the app's content (cells, jumps, positions) as parameters and has its <name>Layout companion — and report that list in "api" exactly as defined, Layout companions included, because the app is written against it.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                none: {
+                    type: 'boolean',
+                    description: 'true when the app shows nothing with a look of its own (a list, poll, timer, form, table): no drawing file is made. Send it alone, without files.'
+                },
+                files: {
+                    type: 'object',
+                    description: 'Exactly one entry: "app/pieces.js" -> the complete file content (classic script, no import/export, no top-level await; ordinary formatted code).',
+                    additionalProperties: { type: 'string' }
+                },
+                api: {
+                    type: 'array',
+                    description: 'The functions app/pieces.js defines on window.App.pieces, one entry per kind of object, plus one per <name>Layout companion of a surface.',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: { type: 'string', description: 'Function name on App.pieces' },
+                            signature: { type: 'string', description: 'e.g. card(rank, suit, faceUp)' },
+                            purpose: { type: 'string', description: 'What it draws and what each parameter changes' }
+                        },
+                        required: ['name', 'signature']
+                    }
+                }
+            },
+            required: []
+        },
+        clientAitype: null,
+        clientComp: null,
+        clientDataField: null,
+        clientPrompt: null,
+        clientPromptField: null,
+        clientTransform: null,
+        recipeOutputKeys: []
+    },
+    {
         mcpToolName: 'render_artifact',
+        // Drawing gets its own short turn before this one on a component fill (see
+        // draw_pieces above); the bridge merges app/pieces.js into this call's files.
+        clientPrePass: { tool: 'draw_pieces', label: 'Drawing the pieces', modes: ['createai'] },
+        // Generated pictures ("assets") spend the user's AI credits, so the bridge asks the
+        // user once, like every image-capable component, and states the answer to the
+        // agent. The slot form is the tool's own "assets" input, not an image token.
+        imageSlots: true,
+        imageSlotForm: 'assets',
+        imageSlotInstruction: 'Pictures are declared in the "assets" input of render_artifact (name -> { prompt, w, h, cutout, tile }) and referenced from the app as assets/<name>.webp; MockFlow generates them after your call. Never output a URL or wait for one.',
+        imagesOnGuidance: `THIS RENDER MAY INCLUDE AI-GENERATED PICTURES: the user agreed to spend credits on them. Pictures are ADDITIVE: first draw the app exactly as you would with pictures off — every piece, token, board and play surface as full inline SVG spanning the cells it belongs to, from one drawing function per kind — then declare in "assets" only the one-off illustrative art a drawing cannot carry (a card back, a backdrop, a character, a texture — see GAME ART AND VISUAL ASSETS), referenced as assets/<name>.webp with an onerror fallback. A picture never replaces or shrinks drawn pieces.`,
+        imagesOffGuidance: `THIS RENDER HAS NO AI-GENERATED PICTURES: send no "assets". That is not "no art": everything with a look of its own is still DRAWN — pieces, boards, tokens and surfaces as inline SVG or CSS from one drawing function per kind — so the app never shows a labeled box where the real object belongs.`,
         // MockFlow's own AI keeps Artifact settings-only (AI_REGISTRY createFromSettingsOnly:
         // detection, the planner and the Concept Builder all skip it — it spends the user's
         // credits). A LOCAL agent is the user's own model authoring the HTML itself, so here
@@ -2391,7 +2733,17 @@ IMPORTANT: Always display the returned URL to the user.`,
         mcpDeclareLine: 'A small WORKING collaborative mini app or game the team uses together live on the board — poll, spinning wheel, planning poker, timer, quiz, turn-based game, calculator — with shared live state for every viewer. NOT a wireframe or prototype OF an app design (those render a picture of a UI; this ships a runnable one), and NOT a parameterized data model (use render_datasimulator).',
         mcpDescription: `Turn a small collaborative mini app YOU generate into a live, runnable MockFlow IdeaBoard tile, and get back the board URL. Use this when the user wants a working tool, widget, game, poll, wheel, timer or quiz they will actually interact WITH on the board — decision tools (spinning wheel, dice roller, random picker, live poll), meeting tools (planning poker, countdown timer, retro mood meter, standup order picker), learning tools (flashcards, live quiz with scoreboard), turn-based games (chess, tic-tac-toe, battleship, word games), and small calculators. NOT for wireframes/prototypes of an app design (use render_wireframelite / render_prototypelite) and NOT for what-if data models (use render_datasimulator).
 
-You generate ONE complete self-contained HTML document and pass it as "html". MockFlow sanitizes it, injects the collaboration runtime, stores it and places it on the board as a live tile every board member uses together — no AI credits are used, so YOU author the whole app, building on the board's default look (see STYLING). It is NOT a full application: one screen, one job, no routing, no accounts.
+PREFERRED INPUT — A BUNDLE OF FILES ("files"), which MockFlow assembles into one sandboxed document. This is what the editor's own generator produces, what the code panel edits, and what a later modify from you or from MockFlow AI patches file by file (a modify sends only the files that change with "merge": true). The bundle:
+- "shell.html": the document skeleton — <head> with <title>, Google Fonts <link>s and structural <style>; <body> with the root markup (containers and ids the scripts render into). NO <script> tags in it.
+- "app/<name>.js": classic scripts (no import/export, no top-level await — an async boot is a function you call), written as ordinary formatted, readable code, never hand-minified one-liners (nothing rewards compression, and a rejected 3,000-character line cannot be patched, only rewritten with new slips), concatenated in the order of the "files" keys (or "order") and run at the end of the body; "app/main.js" is the boot file and always runs last (waits for the 'mfartifactready' event, wires delegated handlers, renders). Share code through window.App = window.App || {}. Split a real app by concern (app/state.js rules and shared-state helpers, app/ui.js rendering, app/main.js boot); a tiny app is one or two files.
+- "app/pieces.js" (when the app shows things with a look of their own): the DRAWING file — window.App.pieces = { <name>: function(...) { return '<svg …>…</svg>'; } }, one function per kind of object, each returning an inline SVG string the app drops into its markup; the rest of the app calls these and never draws a piece itself. When your turn says this file is PRE-DRAWN, it is added to the bundle for you: call its functions exactly as listed and never send, rewrite or redefine it.
+- "app/<name>.css" (optional): structural styles.
+- "theme.css": the user-editable look layer (CSS variables and small overrides). Leave it empty (or a comment) for the default IdeaBoard look; write real rules only when the user asked for a distinct style (then also send customTheme:true).
+- "copy.json": EVERY user-facing string as one flat object of key -> text. Code renders text with MFArtifact.t('key','fallback') and never hardcodes UI strings, so the team can reword the app in the editor without you.
+- "data.json" (or the "data" input): authoring-time content for content-driven apps, read with MFArtifact.getData().
+Every file is validated (syntax, lint for sandbox violations) and the assembled app is booted and exercised in a headless browser; a 400 names the file, line and column to fix with the source around it — patch that spot and resend the file, never rewrite the file from scratch — and the success response lists warnings attributed to files. The legacy single-document form ("html": one complete document) is still accepted for simple apps.
+
+MockFlow sanitizes what you send, injects the collaboration runtime, stores it and places it on the board as a live tile every board member uses together — no AI credits are used, so YOU author the whole app, building on the board's default look (see STYLING). It is NOT a full application: one screen, one job, no routing, no accounts.
 
 COLLABORATION (the defining feature — design for it by default):
 - window.MFArtifact is injected before your script runs (do NOT define or overwrite it). API:
@@ -2403,12 +2755,12 @@ COLLABORATION (the defining feature — design for it by default):
   MFArtifact.onUsersChange(cb) -> cb(users, me) fires when the roster changes
   MFArtifact.readonly() -> true when this viewer may not change anything (disable inputs)
   MFArtifact.render(el, htmlString) -> non-destructive render: morphs el's current DOM toward the markup, touching only nodes that actually changed
-- Wait for the 'mfartifactready' document event (or a non-null MFArtifact.me()) before first render, then render exclusively FROM state so every user sees the same thing.
+- Wait for the 'mfartifactready' document event before first render (until then MFArtifact.me() is a placeholder with an empty id — never key state by it before the event), then render exclusively FROM state so every user sees the same thing.
 - RENDERING IS NON-DESTRUCTIVE: every user's copy re-renders on EVERY state write by EVERY collaborator — with anything that ticks, that is every second. Write ONE render function that builds the changing UI's markup from state and applies it with MFArtifact.render(rootEl, html), NEVER by assigning innerHTML: wholesale replacement recreates every node each tick, which visibly reload-flashes member avatars and every other image and wipes what a user is mid-typing, while MFArtifact.render leaves unchanged nodes alone. Give repeating rows (entries, seats, votes, roster chips) a stable data-key (user id, entry id) so a list reuses its DOM when items move. Because nodes SURVIVE re-renders, attach event handlers ONCE by delegation on a stable container (or as inline onclick attributes in the markup) — an addEventListener inside the render path would stack duplicate handlers on surviving nodes — and keep one-off imperative work (canvas drawing, effect layers) outside the morphed markup.
 - getState() ALWAYS returns an object — on a fresh artifact the EMPTY object {}. Detect first run by checking for a key you own, never by getState() truthiness, and seed the complete initial state then. Every state read must tolerate missing or partial fields; a render that throws leaves the tile frozen for everyone.
 - NEVER hardcode people's names — build person-related data (wheel entries, votes, seats, scores) at runtime from MFArtifact.users()/me(). Key per-user data BY USER ID (state.votes[me().id] = choice) so simultaneous users never overwrite each other.
 - MEMBERSHIP, PRESENCE and PARTICIPATION are distinct: users() is who could take part, the online flag is who has the board open right now (display only — never gate eligibility, turns or results on it, and going offline never vacates a seat or loses data), and joining the app's activity is an explicit user action recorded in shared state keyed by user id. The roster is live — re-render person UI from current users() via onUsersChange, never from a startup copy, and persist references as user ids, never roster indexes. When the activity has phases, the people UI follows: who could take part before start, participants once underway (others read as spectators or late joiners), and a mid-activity arrival gets a coherent view built from state. AN ALWAYS-VISIBLE MEMBER LIST IS EARNED (DISPLAY only — never the person controls above): it exists only when people are core to the app's job (seats, votes, scores, turns) — a board can have DOZENS of members, so displayed membership appears ONLY as ONE HORIZONTAL ROW of at most 5 avatar chips, never a vertical list and never an open-ended one. The row ends in a single "+N" chip that is a REAL button (aria-label and title, e.g. "Show all 14 members") opening a <dialog> or popover with a capped height and its own scroll, listing the rest with their online dots; names are NOT printed beside the chips but ride on each chip's .mf-tip tooltip (data-tip="name"). The only people list that may stay visible is PARTICIPATION (who actually joined the activity), and it too gets its own scroll area. PERSON CONTROLS ARE REQUIRED, AND NOTHING BELOW REMOVES THEM: whenever the app's job involves choosing, crediting, assigning, seating or addressing somebody (send kudos TO someone, assign a task, claim a seat, pick who spins, vote for a person, hand over a turn), the app MUST give the user a way to choose a real board member — a select, a searchable picker, or clickable avatar chips built from MFArtifact.users() and keyed by user id, never free-text names and never invented ones. A picker is a CONTROL, not roster decoration: compact by nature (a closed select, a button that opens a list), coping with dozens of members (scrollable, searchable when long) and ellipsizing long names. WHAT STAYS RESTRAINED IS AMBIENT ROSTER DISPLAY, the decorative "who is on this board" strip no mechanic needs: prefer showing a person WHERE THEY MATTER (the avatar on the card, entry or vote they own, the occupant in their seat, the name against their score row, the "your turn" marker), and keep a standalone member strip as the last resort, justified when the app must show who could take part before anyone has acted; an app that never refers to a person (timer, calculator, dice) shows none of this.EVERY NAME ELLIPSIZES: a name rendered anywhere (chip, seat, row, leaderboard, log) is clamped to one line with text-overflow:ellipsis and min-width:0 on its flex parent, full value reachable on hover and focus — the person UI must look identical with 2 members and with 30. LABELS AND COUNTS TELL THE TRUTH: a count derived from users() is "members" or "on this board", NEVER "players"/"participants"/"voting" — activity nouns and their counts come only from participation records in state, and an empty activity says so ("no players yet") rather than dressing the roster up as participants.
-- Shared randomness (spins, dice, shuffles) must be deterministic from a seed stored IN STATE so every user sees the identical outcome. High-frequency writes (each move, each tick) use {undoable:false}; only meaningful checkpoints (start, reset, final result) should be undoable.
+- Shared randomness (spins, dice, shuffles) must be deterministic from a seed stored IN STATE so every user sees the identical outcome. High-frequency writes (each move, each tick) use {undoable:false}; only meaningful checkpoints (start, reset, final result) should be undoable. A write made with nobody interacting and {undoable:false} (a timer tick, a loop frame) is LIVE-ONLY: every open session sees it at once but it is never saved, and a reload resumes from the last checkpoint, so store the moment something started and derive elapsed or remaining time from it rather than persisting a counter that only exists in the ticks.
 
 CONTENT DATA (for artifacts whose value comes from a body of subject matter):
 - When the artifact's value comes from a body of CONTENT — subject matter the app renders from, which could be swapped for different subject matter while the app stays the same app — pass it as the separate "data" input (one JSON object) and read it in the app via MFArtifact.getData() (null when absent). MockFlow stores it as data.json beside the code, so the content can later be swapped or AI-regenerated WITHOUT touching your code — render entirely from getData() and never duplicate the content inline. THE TEST IS SUBSTITUTION, not the app's category, size or shape: if a user could ask for the same app "about something else" and only this JSON would change, it is content and belongs in "data", whatever kind of app it is; values that configure or label the app itself are part of the app and live in the HTML. Artifacts with no content body omit "data".
@@ -2422,11 +2774,15 @@ FEEDBACK MOMENTS (the app acknowledges what happens — work these out from THIS
 
 3D LOOKS ARE CSS: when the request implies depth or dimensional motion, build that motion with CSS 3D transforms — perspective on the container, rotateX/rotateY with transform-style: preserve-3d, backface-visibility where an element has two sides — and COMMIT to the effect the request implies: a thing that turns shows its actual other side, a thing that folds visibly hinges where it should. Never reach for a 3D engine or canvas to fake what CSS transforms do natively, and never silently downgrade a requested dimensional effect to a flat slide or crossfade.
 
+GAME ART AND VISUAL ASSETS (things with a look of their own are drawn, never labeled): a playing card, a game tile, a die, a board, a token, a piece, a character, a scene — people know these by how they look, and the app shows them that way; a box holding the words that describe the thing ("red 7", "knight", "wild") is a placeholder, not the thing, and the characteristic failure of a generated game. Text appears on a piece only where the real piece prints it (the numeral on a card, the letter and score on a word tile), in the piece's own typography and placement. SYSTEMATIC PIECES ARE VECTOR ART YOU DRAW: anything that comes as a set defined by a few attributes (rank by suit, color by value, face one to six) is produced by ONE drawing function per kind that takes those attributes and returns inline SVG, reproducing the piece's real visual language (proportions, corner indices, borders, pips, silhouettes, color conventions) from real shapes, never a colored rectangle with a word in it. A DRAWN OBJECT HAS BODY, EDGE AND DETAIL: a filled shape with an outline, plus the parts and markings a person recognizes that object by (its silhouette, its face or front, what distinguishes one of its kind from another), with a gradient, highlight or shadow where the real thing has volume — ask what someone would name the object by at a glance and draw those things; a single stroke, a plain line or a flat shape standing in for an object is the placeholder this rule forbids; boards and play surfaces are drawn the same way, and a play area is a SURFACE (felt, wood, a grid, a themed backdrop), never bare white space. ILLUSTRATIVE ART IS GENERATED FOR YOU: for pictures a vector drawing cannot carry (the illustration on a card back, a table or scene backdrop, a character portrait or mascot, an item picture, a themed board surface, a material texture) declare them in the "assets" input — name -> { "prompt": art direction (subject, style, palette, composition; say "no text" unless the picture needs text), "w"/"h": pixels 256-1024 (default 512, match the displayed aspect), optional "cutout": true for a subject that must sit on any background (generated on white, the ground removed — pieces, characters, props; never scenes or textures), optional "tile": true for a seamless texture } — and MockFlow generates each one with its image model and stores it beside the app. This is the ONE thing this tool spends the user's AI credits on: one credit per picture, at most 8 per artifact, so declare only what the app displays. Reference each from the app as the literal string assets/<name>.webp — ONE complete literal per reference (<img src="assets/cardback.webp">, url(assets/felt.webp), 'assets/hero.webp' in code), never assembled from pieces at runtime — with explicit <img> dimensions and an onerror fallback (a drawn shape or flat color) so a missing picture never breaks the layout. On a modify, declared pictures stay stored: keep their names and declare only new ones (in a bundle the declaration is the file "assets.json"; the "assets" input is layered over it). Real people and trademarked characters are not generated: describe the look instead. Vector for anything rendered in many variants or that must stay crisp across a set; generated images for the one-off pictures that give the app its atmosphere.
+
 HARD RULES (a CSP enforces them — violations just break the tile):
 - Entirely self-contained with ONE exception (Google Fonts): NO other external scripts, stylesheets, images, iframes or media. No fetch/XHR/WebSocket, no eval/new Function, no cookies/localStorage/sessionStorage (state lives in MFArtifact), no window.open, no touching parent/top. Inline images only as data: URIs or inline SVG, with ONE exception: MEMBER AVATARS ARE REAL PHOTOS AND YOU MUST SHOW THEM. The avatar value on MFArtifact.users()/me() is a real image URL the CSP allows, so every person chip renders an <img> whose src comes from that value AT RUNTIME — build it into the markup string your render function passes to MFArtifact.render ('<img src="'+user.avatar+'"...>'), so re-renders see the same src and leave the loaded photo alone; never paste a LITERAL avatar URL into the document source (a baked URL is stripped before the artifact ships), and never assign the src imperatively after rendering (the next morph pass would remove an attribute the markup does not carry). Size it with explicit width/height, object-fit:cover and a circular radius. Fall back to the initial-letter .mf-avatar chip only when the value is empty or the image fails (an onerror handler). Rendering initials while a photo exists is a defect, and it is the most common way an agent-authored artifact looks wrong next to the rest of the board. No window.alert/confirm/prompt — all feedback in-page.
 - FONTS are the one permitted external origin: standard Google Fonts <link> tags in <head>, applied with your own CSS — never leave the browser default font showing. DEFAULT to Source Sans Pro, the editor's own body typeface, for UI and headings alike so the tile reads as native to the board; depart from Source Sans Pro ONLY when the user's request names a visual style or the artifact's character genuinely calls for a different voice (a retro terminal, a playing-card table, a brand look) — then choose 1-2 families that suit that design instead.
 - ICONS: use Bootstrap Icons class names — <i class="bi bi-play-fill"></i> — and nothing else: never emoji-as-icons, never another icon set, and do NOT link any stylesheet or font for it (the glyph font is inlined at upload and just works). Size an icon with font-size and color it with color. Use real bi-* names (bi-play-fill, bi-pause-fill, bi-dice-5, bi-trophy, bi-person-fill, bi-stopwatch, bi-arrow-repeat, bi-check-lg, bi-x-lg, ...). Icon-only buttons always get an aria-label and title.
 - CHARTS: Chart.js (v3) is injected at upload and available as the global \`Chart\` — do NOT include or link it yourself. Reach for it whenever the app has real numbers worth SEEING rather than reading: poll and vote results, score or estimate distributions, a tally as it fills, a trend across rounds. It is not decoration — an app with nothing quantitative charts nothing, and a single number is a number, not a chart. Only the core library is present (no plugins, no date adapter, so no time-scale axes): style it through the chart's own options, on the artifact's palette and fonts. A chart canvas lives in a sized wrapper with maintainAspectRatio:false so it fits the resizable tile. The canvas is imperative, so it stays OUT of the markup your render function morphs (see RENDERING) — create the chart ONCE and push new numbers by mutating its data and calling .update(), never by rebuilding a chart on every state change, and destroy any chart whose canvas you do replace.
+- COMPOSED FOR ITS SIZE: decide the layout first, then send the width and height that fit it — never pick a size and leave the content floating in it. At that size the content fills the tile: the main surface (board, canvas, list, chart, stage) takes the room that is left, secondary regions (controls, roster, status) are sized to their content, and there is no blank band, no strip of content with void around it, nothing huddled in a corner. Spacing comes from ONE scale (multiples of 4px; 8, 12, 16 and 24 are the working values), edges align across regions, equal things are equally spaced, and one radius family, one shadow treatment and one type scale are used everywhere. A screenshot of the booted tile is reviewed before the result is answered.
+- MOTION IS PART OF THE DESIGN: a change of state is animated, never a jump between two renders. A piece that moves travels to its new place (transition on transform or position, 300-600 ms, eased); a roll rolls, a spin spins, a flip flips, a reveal fades or scales in; a value that changes counts or slides; a control responds on hover, press and focus with a short transition; a list item that appears or leaves animates in or out. Keep every animation short and purposeful, drive it from the state change that caused it (a data-key or class the render sets, a CSS transition or keyframe, or one imperative effect kept outside the morphed markup), and respect prefers-reduced-motion.
 - STYLING: Tailwind utilities ARE available (injected at upload — do NOT include Tailwind yourself or redefine tailwind.config). The palette carries IdeaBoard tokens — primary (#1c7ce2), accent (#ffcc33), surface, muted, rounded-mf — plus CSS variables (--mf-primary, --mf-accent, --mf-surface, --mf-border, --mf-text, --mf-muted, --mf-radius, --mf-shadow) and base classes (.mf-btn, .mf-card, .mf-input, .mf-chip, .mf-avatar, .mf-tip). DEFAULT LOOK: build on this theme so the artifact visibly belongs to IdeaBoard — primary-blue actions, soft surfaces, rounded cards — with the Google Fonts you chose per the FONTS rule. ONLY when the user's request explicitly names a distinct visual style (retro, terminal, pixel art, a brand, ...) design that style yourself instead and pass customTheme: true so the base theme is skipped.
 - RESPONSIVE: the tile is resizable (default around 480x420) and is regularly NARROWER and SHORTER than the size you designed for. html/body and your root element fill 100% of the frame — never a fixed 100vh, and never a min-height or min-width in pixels on the root or on a column, since either makes the app spill the moment the tile is smaller. Multi-column layouts COLLAPSE to one column when the tile is narrow (a width media query, or grid-template-columns:repeat(auto-fit,minmax(...,1fr))); a fixed-width side column is a defect, and nothing may ever be cut off sideways or need horizontal scrolling to read (the upload measures horizontal overflow trapped inside your own containers and grows the tile for it). Every region that can outgrow its space (roster, entries, leaderboard, log) gets its own scroll area with min-height zero inside a flex column, so it scrolls while headings and actions stay put — but do NOT wrap the whole app in one scroll container to cope with a small tile. Never suppress the document's own scrolling as a way to hide overflow: content the user cannot reach is a broken artifact, a scrollbar is not.
 - NO FORM SUBMISSION: the sandbox blocks real <form> submission entirely — submit events, type="submit" buttons and native HTML5 validation UI (required/pattern bubbles) never fire. Wire actions with JS click handlers and make Enter in a text input trigger the same action explicitly. FORM CONTROLS do not inherit the document font — make every control inherit the app's typography (the injected .mf-input/.mf-btn do) with a visible, theme-consistent focus state; a control showing the browser's default look is a defect. VALIDATE before acting — trim, ignore empty input, cap length sensibly — with the problem shown inline beside the control, never silently; on success clear the field and return focus to it, on failure keep what the user typed, and disable a control while its action is in flight. USER TEXT IS DATA: anything a person typed (state values, input text, roster names) must never be interpolated raw into markup — write ONE small esc() helper (escaping & < > " ') and pass every user value through it when building the markup for MFArtifact.render (imperatively-managed nodes use textContent) — and wrap or ellipsize long values so no name or entry breaks the layout.
@@ -2435,13 +2791,16 @@ HARD RULES (a CSP enforces them — violations just break the tile):
 - Crash-free JS: null-check every element lookup; an uncaught error kills the tile. The document must be COMPLETE (<!doctype html> through </html>) with all markup, styles and one script block inline — a truncated document is rejected.
 - WHITEBOARD LEGIBILITY: this tile lives on a zoomable whiteboard, read while the viewer is zoomed out to see the whole board, next to sticky notes and headings whose text is deliberately large. A type scale that suits a dense web app is illegibly small here, so judge sizes by how they read on the board, not by familiar web values: size the whole scale a step larger than you would for a web page, keep secondary text comfortably readable rather than fine print, and make the values that carry the app (the score, the timer, the current question, whose turn it is) readable at a glance from across the board. TEXT SETS THE SCALE and the chrome follows it: cards, padding, controls and the tile footprint are sized around readable text, never the reverse — a spacious tile of roomy panels with fine print inside is the characteristic failure. Fitting the tile is never a reason to shrink text: when space is tight, simplify the layout or let a region scroll instead. CONCRETE FLOOR: interface and body text at 15px or larger, secondary text and captions never below 13px, and the values that carry the app at 20px or larger — Tailwind's text-xs and text-sm are caption sizes on a whiteboard, never interface or body text.
 
-ACCEPTANCE (one pass, the same bar as an in-app generation — write it right the first time, there is no review round): the upload rejects only what would ship permanently broken — a script parse error (script-error), a document that does not close </html>, and a getData() app arriving without its "data" input (data-required); the error text says exactly what broke, so fix the HTML and call the tool again. The stored document is then booted once to measure it, growing the tile when static content is cut off. A successful result may still carry WARNINGS from that boot (mostly sub-15px text, controls covered by an overlay, a member list that grows the layout, a control that throws when used) — the tile has already shipped, so do NOT call this tool again for them; apply them the next time you modify this artifact, or immediately when the user asks.
+ACCEPTANCE (write it right the first time — the same bar as an in-app generation): the upload rejects only what would ship permanently broken — a script parse error (script-error, with file, line and column), a lint violation of the sandbox rules (lint-error), a document that does not close </html>, a getData() app arriving without its "data" input (data-required), and a merge that changes nothing (bundle-error); the error text says exactly what broke, so fix that spot and call the tool again with the complete bundle. The stored document is then BOOTED AND USED in a headless browser (any acceptance "steps" you sent executed first, then its buttons clicked, its inputs typed into, a roster of 14 members pushed in), growing the tile when static content is cut off. A successful result may carry WARNINGS from that run (sub-15px text, controls covered by an overlay, a member list that grows the layout, an asset declared in the wrong form) — the tile has already shipped, so apply them the next time you modify this artifact. The booted tile is also REVIEWED FROM A SCREENSHOT, both as first seen and in use: blank space at the size you declared, uneven spacing, mismatched styling and objects shown as labeled boxes come back as "design" warnings. When the result ends with a REQUIRED FOLLOW-UP, act on it right away with ONE more call: an uncaught error on load or when a control was used (the tile is broken for the user; the file and line are named) always requires it, and so do major design findings. Send "merge": true with only the files that actually change, each complete — a merge that resends identical files or no files is rejected — then stop. A finding that is factually wrong about your app (an order, a rule, a value a screenshot cannot see) is ignored, never "fixed"; the starting state of a collaborative app (a start or join card before anyone acted) is correct content, not a placeholder.
 
-COMPLETENESS (it must genuinely WORK, not demo): implement the real logic completely — for a game, its actual rules enforced in code (legal moves, turn order, win detection, rematch); for tools, every visible control functions and the tile never reaches a dead state only a reload fixes. HELP IS BUILT IN: ship a small help affordance — an icon-only "?" button (bi-question-circle, with aria-label and title) in a corner of the UI, opening a styled <dialog> — that explains in THIS app's own terms what the artifact is for, how to use or play it (the few rules or steps that actually matter: how ships are placed and shots are called, how many dots each person may spend, what a planning poker round looks like), and one short example when it genuinely clarifies; users cannot be assumed to know a game's rules or a facilitation format's conventions just by seeing the tile — someone who has never met the activity must be able to get going from this alone, in seconds, from a few structured lines in the artifact's own visual language. COMPUTER OPPONENT: when the request implies playing against the computer, or the game needs an opponent and the board may have only one person on it, implement a REAL opponent in code that automatically takes its legal turn — minimax with alpha-beta and a small depth cap for small perfect-information games, a sensible heuristic elsewhere — playing legally, actually challenging the player, moving through the same state writes as a human ({undoable:false}) with a short delay so its turn reads naturally; a seat labeled Computer that never moves is a failure, and where both make sense offer vs-computer alongside vs-people. Polished modern product look: clear hierarchy, generous whitespace, designed hover/active/disabled states with smooth transitions and animated feedback (a vote fills its bar, a card flips, a wheel eases to a stop, a timer ring drains), a considered idle state, clear whose-turn or how-many-acted indicators built from participation, and a satisfying result moment. STATE CHANGES KEEP CONTRAST: any state that changes an element's background restates the text and icon color against the NEW background in the same rule — a light button whose hover fills with the primary color must flip its label to a readable color in that same rule (Tailwind hover:bg-* always pairs with the matching hover:text-*). The board frame already shows the artifact's name above the tile, so never spend tile space on a static name heading — an in-tile heading exists only when it carries live information (the current question, round, or whose turn). Prefer depth over breadth: build the ONE requested thing excellently rather than surrounding it with half-working extras, and generate repeated UI (board squares, card grids, option rows) programmatically in the script instead of pasting near-identical markup blocks.
+COMPLETENESS (it must genuinely WORK, not demo): everything the app manages is fully manageable — for each kind of thing a person creates in it (a task, an idea, a vote, an entry, a card) support the actions they will expect: create, edit in place (the text becomes editable where it sits, Enter saves, Escape cancels, a re-render never wipes what someone is typing), complete or undo, delete with a way back, reorder or reassign where it matters — never only create and delete. Implement the real logic completely — for a game, its actual rules enforced in code (legal moves, turn order, win detection, rematch); for tools, every visible control functions and the tile never reaches a dead state only a reload fixes. HELP IS BUILT IN: ship a small help affordance — an icon-only "?" button (bi-question-circle, with aria-label and title) in a corner of the UI, opening a styled <dialog> — that explains in THIS app's own terms what the artifact is for, how to use or play it (the few rules or steps that actually matter: how ships are placed and shots are called, how many dots each person may spend, what a planning poker round looks like), and one short example when it genuinely clarifies; users cannot be assumed to know a game's rules or a facilitation format's conventions just by seeing the tile — someone who has never met the activity must be able to get going from this alone, in seconds, from a few structured lines in the artifact's own visual language. COMPUTER OPPONENT: when the request implies playing against the computer, or the game needs an opponent and the board may have only one person on it, implement a REAL opponent in code that automatically takes its legal turn — minimax with alpha-beta and a small depth cap for small perfect-information games, a sensible heuristic elsewhere — playing legally, actually challenging the player, moving through the same state writes as a human ({undoable:false}) with a short delay so its turn reads naturally; a seat labeled Computer that never moves is a failure, and where both make sense offer vs-computer alongside vs-people. Polished modern product look: clear hierarchy, generous whitespace, designed hover/active/disabled states with smooth transitions and animated feedback (a vote fills its bar, a card flips, a wheel eases to a stop, a timer ring drains), a considered idle state, clear whose-turn or how-many-acted indicators built from participation, and a satisfying result moment. STATE CHANGES KEEP CONTRAST: any state that changes an element's background restates the text and icon color against the NEW background in the same rule — a light button whose hover fills with the primary color must flip its label to a readable color in that same rule (Tailwind hover:bg-* always pairs with the matching hover:text-*). The board frame already shows the artifact's name above the tile, so never spend tile space on a static name heading — an in-tile heading exists only when it carries live information (the current question, round, or whose turn). Prefer depth over breadth: build the ONE requested thing excellently rather than surrounding it with half-working extras, and generate repeated UI (board squares, card grids, option rows) programmatically in the script instead of pasting near-identical markup blocks.
 
 INPUT:
 - html (required): the complete self-contained artifact HTML following the contract above.
 - data (optional): the artifact's content body as ONE JSON object (stored as data.json, read via MFArtifact.getData()). Supply it whenever the app is content-driven; size it to one short collaborative board session (an explicit user count wins exactly; inherently fixed sets like a full card deck stay complete).
+- spec (optional): notes about the app (state shape, files, pieces) as a string, stored with the bundle so later modifies see them.
+- steps (optional): an acceptance walkthrough the server EXECUTES against the booted tile before answering, as step objects — {"click":"<control text>"}, {"dblclick":"<text>"}, {"type":"<text>","in":"<placeholder>"}, {"press":"Enter","in":"<placeholder>"}, {"wait":600}, {"expect":{"text":"..."}} / {"notText"} / {"visible"} / {"state":{"tasks.length":1}} / {"count":{"of":"[data-key]","min":1}}. A failing step comes back as a runtime failure with a REQUIRED FOLLOW-UP, and stored steps run again on every later merge.
+- assets (optional): generated pictures as ONE OBJECT keyed by name — {"felt": {"prompt": "...", "w": 512, "h": 512, "tile": true}} — never a list (see GAME ART AND VISUAL ASSETS); each spends one AI credit and is referenced from the app as assets/<name>.webp. Omit when the app draws everything itself.
 - dataHint (send it whenever you send "data"): decides whether the editor offers its "Update content with AI" action, which rewrites this artifact's data.json without touching its code. BEFORE composing any wording, judge which kind of data the block holds: subject matter the user chose (a topic they could ask to swap for another), or machinery the app needs to run. When it is machinery — nobody would ever ask to change it, or it is a few small values a person would edit faster by hand than by prompting an AI — send "none" and the editor hides that action instead of inviting an edit that makes no sense. Only when the data is genuinely swappable subject matter, write the instruction a user of THIS artifact would plausibly type to change what its content is about — it becomes the example shown in the action's input — phrased as that instruction itself rather than a description of one, and short enough to read inside an input field.
 - title (optional): 2-4 words naming what the artifact IS (e.g. "Decision Wheel"). Falls back to the HTML <title>.
 - width / height (optional): the tile size in board pixels at which this artifact reads best, 240-1400 each. Size against everything on screen at rest, leaving room for at least the first two rows of every list the design shows. The tile shares the board with sticky notes, so it earns its footprint with content: prefer the smallest size at which the whiteboard type scale stays comfortable, never a large tile that spreads a small app out. The server boots the document at this size and grows it if static content is measured to overflow, so a too-small pick is corrected — but a considered pick avoids the reflow.
@@ -2451,13 +2810,49 @@ IMPORTANT: Always display the returned board URL to the user.`,
         mcpInputSchema: {
             type: 'object',
             properties: {
+                files: {
+                    type: 'object',
+                    description: 'PREFERRED. The artifact bundle as a map of path -> file content: "shell.html", one or more "app/<name>.js" (app/main.js boots last), optional "app/<name>.css", "theme.css", "copy.json", optional "data.json". Key order is the script order. See the tool description for the file contract.',
+                    additionalProperties: { type: 'string' }
+                },
+                merge: {
+                    type: 'boolean',
+                    description: 'MODIFY mode: layer the sent files over the artifact\'s stored bundle (files you do not send stay as they are). Use it when filling the artifact the user is editing, sending only the files that change. A legacy single-document artifact is lifted into a bundle first (its scripts become app/script-N.js).'
+                },
+                deletes: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'With merge: bundle files to remove (e.g. ["app/old.js"]).'
+                },
+                order: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Optional explicit script/style order for the app/ files when the files map order is not the intended one.'
+                },
                 html: {
                     type: 'string',
-                    description: 'Complete self-contained collaborative mini app as one HTML document using the injected window.MFArtifact API for all shared state. Inline CSS/JS only; no external resources except Google Fonts links; no network calls.'
+                    description: 'LEGACY single-document form: a complete self-contained collaborative mini app as one HTML document. Prefer "files".'
                 },
                 data: {
                     type: 'object',
                     description: 'The artifact\'s content body as one JSON object — the subject matter the app renders from, which could be swapped for different subject matter while the app stays the same app. The test is substitution, not the app\'s category: if the user could ask for the same app "about something else" and only this JSON would change, it is content, whatever kind of app it is; values that configure or label the app itself live in the HTML, not here. Stored as data.json beside the code and read in the app via MFArtifact.getData(); enables later content-only AI updates without touching the code. REQUIRED when the HTML renders from MFArtifact.getData() (the upload is rejected without it); omit for apps with no content body.'
+                },
+                spec: { type: 'string', description: 'Optional notes about the app as a string; stored with the bundle for later modifies.' },
+                steps: { type: 'array', items: { type: 'object' }, description: 'Optional acceptance steps the server runs against the booted tile (shapes in the description); a failing step is a runtime failure.' },
+                assets: {
+                    type: 'object',
+                    description: 'Generated pictures for the app, as ONE OBJECT keyed by asset name (not a list): {"felt": {"prompt": "green casino felt, soft vignette, no text", "w": 512, "h": 512, "tile": true}, "hero": {"prompt": "friendly cartoon robot mascot, front view, flat shading", "w": 512, "h": 512, "cutout": true}}. MockFlow paints each with its image model (ONE AI credit per picture, at most 8) and stores it beside the app; reference it from the app as the literal string assets/<name>.webp. Only for illustrative art a vector drawing cannot carry (card backs, backdrops, characters, textures) — systematic pieces (cards by rank and suit, dice faces, tiles, boards) are inline SVG the app draws. Omit when the app draws everything itself.',
+                    additionalProperties: {
+                        type: 'object',
+                        properties: {
+                            prompt: { type: 'string', description: 'Art direction: subject, style, palette, composition. Say "no text" unless the picture needs text.' },
+                            w: { type: 'number', description: 'Width in px, 256-1024 (default 512); match the aspect the app shows it at.' },
+                            h: { type: 'number', description: 'Height in px, 256-1024 (default 512).' },
+                            cutout: { type: 'boolean', description: 'true for a subject that must sit on any background (pieces, characters, props): generated on white, the ground removed.' },
+                            tile: { type: 'boolean', description: 'true for a seamless repeating texture (a surface, a material).' }
+                        },
+                        required: ['prompt']
+                    }
                 },
                 dataHint: {
                     type: 'string',
@@ -2480,7 +2875,7 @@ IMPORTANT: Always display the returned board URL to the user.`,
                     description: 'Set true ONLY when the user asked for a distinct visual style (retro, terminal, pixel art, a brand) you styled yourself — it skips the injected IdeaBoard base theme.'
                 }
             },
-            required: ['html']
+            required: []
         },
 
         // HTML-input tool: the connected tab uploads the agent HTML via /call/api/artifact/upload
@@ -2509,7 +2904,7 @@ IMPORTANT: Always display the returned board URL to the user.`,
         // mockup fragment with pre-filled demo results, no <!doctype html>, no
         // MFArtifact. Any catalog entry may declare this field; the bridge appends
         // whichever apply, no tool-specific engine code.
-        clientFillContract: 'render_artifact ships a RUNNABLE app, not a picture of one: its html argument is ONE complete self-contained document (<!doctype html> through </html>) with real working logic and the window.MFArtifact collaboration contract exactly as the tool description specifies. Never a static mockup: no pre-filled demo results, boards or scores — state starts empty and real interaction fills it. It is COLLABORATIVE, used by several board members from their own screens at once, and the people in it are real: anything person-shaped (seats, turns, votes, scores, entries) belongs to actual board members from MFArtifact.users()/me() — an activity is joined by an EXPLICIT action recorded in shared state keyed by MFArtifact.me().id (never anonymous fixed labels like Player 1/Player 2), person UI shows real names and REAL AVATAR PHOTOS (an <img> whose src comes from the roster avatar value at runtime, built INTO the markup string the render function passes to MFArtifact.render — never a literal URL pasted into the document source, and never assigned imperatively after rendering, which the next morph pass would strip — falling back to an initial-letter chip only when it is empty or fails) with online status, and re-renders on MFArtifact.onUsersChange, and every per-user value is keyed by user id. Rendering is NON-DESTRUCTIVE: every user\'s copy re-renders on every state write by every collaborator, so the UI is applied with MFArtifact.render(rootEl, html) — never by assigning innerHTML, which recreates every node each tick, reload-flashing avatars and images and wiping in-progress typing — with a stable data-key on repeating rows, event handlers attached ONCE by delegation on a stable container (surviving nodes stack duplicate addEventListener calls), user text escaped through a small esc() helper before interpolation, and one-off imperative work (canvas, effect layers) kept outside the morphed markup. Build every person CONTROL the app\'s job needs — if the user has to choose, credit, assign, seat or address somebody, there must be a picker of real board members (select, searchable list or clickable avatar chips from MFArtifact.users(), keyed by user id, never free text). Restraint applies only to ambient roster DISPLAY: show a person where they matter (the avatar on the card, vote or seat they own) rather than in a panel, and keep a standalone member strip as a last resort — one row of at most 5 avatar chips ending in a "+N" button that opens a scrollable panel, never an open-ended list, names on .mf-tip tooltips, every name ellipsized. Tooltips are the injected ones: class="mf-tip" data-tip="..." and nothing else, never your own :hover::after tooltip CSS (it clips at the tile edge and double-renders over the injected one). Every dialog, popover or menu panel carries its OWN spacing — the injected Tailwind preflight zeroes default dialog padding, so explicit padding (16-24px), radius, max-width and internal scroll are required; content flush against an overlay\'s edge is a defect. The app also ships a small built-in help affordance: an icon-only "?" button (bi-question-circle, aria-label and title) opening a styled <dialog> that explains in this app\'s own terms what the artifact is for and how to use or play it — the few rules or steps that matter, with a short example when it clarifies — because users cannot be assumed to know a game\'s rules or a facilitation format\'s conventions just by seeing the tile. The tile is resizable and often narrower than you designed for, so the root fills the frame with no fixed 100vh, no pixel min-height or min-width, columns that collapse when narrow, and no wrapping of the whole app in one scroll container. The app also acknowledges what happens, at two scales that never swap: a LIGHT acknowledgement when a single action lands (an inline toast, a control that pulses, a bar that fills — never a confetti burst), and ONE designed celebratory moment reserved for the app\'s own conclusion (a result decided, a round or session over), fired once per outcome against a token kept in a local variable (never on load, never on a plain re-render) from an effect layer that is pointer-events:none, removes itself when it ends, lasts a second or two at most, and degrades to the same information shown statically under prefers-reduced-motion. Whenever you send content data, send dataHint with it: the example instruction the editor offers for rewriting that content, phrased as the instruction a user of THIS artifact would type, or "none" when the data is machinery the app needs, or a few small values not worth an AI edit, rather than subject matter anyone would ask to change (the editor then hides that action for this artifact). Chart.js is injected alongside Tailwind, so numbers the app genuinely produces — poll tallies, score or estimate distributions, a trend across rounds — are CHARTED with the global Chart rather than approximated in hand-built CSS bars, on a canvas kept outside the morphed markup, created once and updated in place. A "no imagery" rule for this tool means no pictures, not no interface: build the full working UI with markup, CSS and inline SVG. Style it on the injected IdeaBoard theme (primary #1c7ce2 actions, soft surfaces, rounded cards, the --mf-* tokens) so the tile visibly belongs to the board, and TYPOGRAPHY IS PART OF THAT: load fonts from Google Fonts (the one permitted external origin) with standard <link> tags and apply them with your own CSS — DEFAULT to Source Sans Pro, the editor\'s own body typeface, for UI and headings alike so the tile reads as native to the board, never leave the browser default font showing, and depart from Source Sans Pro ONLY when the request names a visual style that genuinely calls for a different voice. Icons are Bootstrap Icons class names (<i class="bi bi-trophy"></i>) and nothing else — never emoji-as-icons, never another set, and no stylesheet linked for them (the glyph font is inlined at upload). The whole tile must look like a polished modern product, never a plain HTML page: clear visual hierarchy, generous whitespace, and designed hover/active/disabled states with smooth transitions — and WHITEBOARD-LEGIBLE: the tile is read zoomed out, next to sticky notes whose text is deliberately large, so a web-app type scale is fine print here; size the whole type scale a step larger than a web page (interface and body text 15px or larger, captions never below 13px, the values that carry the app 20px or larger; Tailwind text-xs/text-sm are caption sizes, never interface text), let text set the scale with cards, padding and tile footprint following it, and never shrink text to fit — simplify the layout or let a region scroll instead. Design a look of your own ONLY when the user\'s request explicitly names a distinct visual style, and then pass customTheme: true. The sandbox blocks real form submission — wire every action with JS click handlers plus explicit Enter handling, never submit events or type="submit" — and any busy flag kept in shared state must be released on every exit path and treated as stale by renderers when its owner is gone.',
+        clientFillContract: 'render_artifact ships a RUNNABLE app, not a picture of one. Send it as a BUNDLE in "files" (shell.html + app/*.js + theme.css + copy.json, per the tool description); when the turn shows a CURRENT BUNDLE, return only the files that change with "merge": true. The legacy single-document form is its html argument: ONE complete self-contained document (<!doctype html> through </html>) with real working logic and the window.MFArtifact collaboration contract exactly as the tool description specifies. Never a static mockup: no pre-filled demo results, boards or scores — state starts empty and real interaction fills it. It is COLLABORATIVE, used by several board members from their own screens at once, and the people in it are real: anything person-shaped (seats, turns, votes, scores, entries) belongs to actual board members from MFArtifact.users()/me() — an activity is joined by an EXPLICIT action recorded in shared state keyed by MFArtifact.me().id (never anonymous fixed labels like Player 1/Player 2), person UI shows real names and REAL AVATAR PHOTOS (an <img> whose src comes from the roster avatar value at runtime, built INTO the markup string the render function passes to MFArtifact.render — never a literal URL pasted into the document source, and never assigned imperatively after rendering, which the next morph pass would strip — falling back to an initial-letter chip only when it is empty or fails) with online status, and re-renders on MFArtifact.onUsersChange, and every per-user value is keyed by user id. Rendering is NON-DESTRUCTIVE: every user\'s copy re-renders on every state write by every collaborator, so the UI is applied with MFArtifact.render(rootEl, html) — never by assigning innerHTML, which recreates every node each tick, reload-flashing avatars and images and wiping in-progress typing — with a stable data-key on repeating rows, event handlers attached ONCE by delegation on a stable container (surviving nodes stack duplicate addEventListener calls), user text escaped through a small esc() helper before interpolation, and one-off imperative work (canvas, effect layers) kept outside the morphed markup. Build every person CONTROL the app\'s job needs — if the user has to choose, credit, assign, seat or address somebody, there must be a picker of real board members (select, searchable list or clickable avatar chips from MFArtifact.users(), keyed by user id, never free text). Restraint applies only to ambient roster DISPLAY: show a person where they matter (the avatar on the card, vote or seat they own) rather than in a panel, and keep a standalone member strip as a last resort — one row of at most 5 avatar chips ending in a "+N" button that opens a scrollable panel, never an open-ended list, names on .mf-tip tooltips, every name ellipsized. Tooltips are the injected ones: class="mf-tip" data-tip="..." and nothing else, never your own :hover::after tooltip CSS (it clips at the tile edge and double-renders over the injected one). Every dialog, popover or menu panel carries its OWN spacing — the injected Tailwind preflight zeroes default dialog padding, so explicit padding (16-24px), radius, max-width and internal scroll are required; content flush against an overlay\'s edge is a defect. The app also ships a small built-in help affordance: an icon-only "?" button (bi-question-circle, aria-label and title) opening a styled <dialog> that explains in this app\'s own terms what the artifact is for and how to use or play it — the few rules or steps that matter, with a short example when it clarifies — because users cannot be assumed to know a game\'s rules or a facilitation format\'s conventions just by seeing the tile. The tile is resizable and often narrower than you designed for, so the root fills the frame with no fixed 100vh, no pixel min-height or min-width, columns that collapse when narrow, and no wrapping of the whole app in one scroll container. The app also acknowledges what happens, at two scales that never swap: a LIGHT acknowledgement when a single action lands (an inline toast, a control that pulses, a bar that fills — never a confetti burst), and ONE designed celebratory moment reserved for the app\'s own conclusion (a result decided, a round or session over), fired once per outcome against a token kept in a local variable (never on load, never on a plain re-render) from an effect layer that is pointer-events:none, removes itself when it ends, lasts a second or two at most, and degrades to the same information shown statically under prefers-reduced-motion. Whenever you send content data, send dataHint with it: the example instruction the editor offers for rewriting that content, phrased as the instruction a user of THIS artifact would type, or "none" when the data is machinery the app needs, or a few small values not worth an AI edit, rather than subject matter anyone would ask to change (the editor then hides that action for this artifact). Chart.js is injected alongside Tailwind, so numbers the app genuinely produces — poll tallies, score or estimate distributions, a trend across rounds — are CHARTED with the global Chart rather than approximated in hand-built CSS bars, on a canvas kept outside the morphed markup, created once and updated in place. Imagery for this tool means ONLY the generated pictures declared in its "assets" input (an object keyed by name, one AI credit each, referenced as assets/<name>.webp with an onerror fallback) — when the user has not agreed to pictures, send no "assets"; that never means no art: build the full working UI with markup, CSS and inline SVG, and draw every game piece, token, board and play surface as real vector art from ONE drawing function per kind, never a labeled box. THE RUNTIME API IS EXACTLY (keep to these names — an upload calling anything else on MFArtifact is rejected): getState(), setState(patch [,{undoable:false}]), onStateChange(cb), getData(), me(), users(), onUsersChange(cb), readonly(), theme(), copy(), t(key, fallback), render(el, html), tools.ai(prompt) and tools.pickAsset(opts); readiness is the document event \'mfartifactready\' (there is no ready(), state(), updateState(), subscribe() or on()). Every visible string is rendered through MFArtifact.t("key", "fallback") with the key in copy.json — an upload whose code renders literal text is rejected, so write it that way the first time. Compose the tile for the size you send: decide the layout, then the width and height that fit it, so the content fills the tile with no blank bands and spacing from one scale; the booted tile is reviewed from a screenshot and unfinished looks come back as findings to fix with one more merge call. Style it on the injected IdeaBoard theme (primary #1c7ce2 actions, soft surfaces, rounded cards, the --mf-* tokens) so the tile visibly belongs to the board, and TYPOGRAPHY IS PART OF THAT: load fonts from Google Fonts (the one permitted external origin) with standard <link> tags and apply them with your own CSS — DEFAULT to Source Sans Pro, the editor\'s own body typeface, for UI and headings alike so the tile reads as native to the board, never leave the browser default font showing, and depart from Source Sans Pro ONLY when the request names a visual style that genuinely calls for a different voice. Icons are Bootstrap Icons class names (<i class="bi bi-trophy"></i>) and nothing else — never emoji-as-icons, never another set, and no stylesheet linked for them (the glyph font is inlined at upload). The whole tile must look like a polished modern product, never a plain HTML page: clear visual hierarchy, generous whitespace, and designed hover/active/disabled states with smooth transitions — and WHITEBOARD-LEGIBLE: the tile is read zoomed out, next to sticky notes whose text is deliberately large, so a web-app type scale is fine print here; size the whole type scale a step larger than a web page (interface and body text 15px or larger, captions never below 13px, the values that carry the app 20px or larger; Tailwind text-xs/text-sm are caption sizes, never interface text), let text set the scale with cards, padding and tile footprint following it, and never shrink text to fit — simplify the layout or let a region scroll instead. Design a look of your own ONLY when the user\'s request explicitly names a distinct visual style, and then pass customTheme: true. The sandbox blocks real form submission — wire every action with JS click handlers plus explicit Enter handling, never submit events or type="submit" — and any busy flag kept in shared state must be released on every exit path and treated as stale by renderers when its owner is gone.',
     },
     {
         // Content-only update of an artifact the user is editing: the question bank, card
@@ -3514,7 +3909,8 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
 - SIZE TEXT BOXES TO THEIR CONTENT. Text that does not fit its w/h is auto-shrunk on the board (down to 5px), so a display word in an undersized box renders unreadably small. Budget about fs * 1.6 of height per line and enough width for the longest line plus padding.
 - Font sizes: hero/display 48-120, subtitles 24-36, body 14-18, labels 10-14.
 - SET fs AND fnt ON EVERY COMPONENT THAT HAS TEXT. They are not optional niceties: a component without them renders at the default size in the default face, which is what a flat, tiny-text board looks like. Vary the sizes hard (a 96px display word next to 12px labels) and pick fonts that carry the mood.
-- MF_ColorCode_ID is the proper palette swatch (selectedColor + showHexCode); use it for colour chips rather than drawing bare rectangles. Scale its dimensions proportionally (keep the aspect ratio when resizing) and never let its width go below 80; if the dimensions end up very disproportionate use shapeType 'full'.`,
+- MF_ColorCode_ID is the proper palette swatch (selectedColor + showHexCode); use it for colour chips rather than drawing bare rectangles. Scale its dimensions proportionally (keep the aspect ratio when resizing) and never let its width go below 80; if the dimensions end up very disproportionate use shapeType 'full'.
+- MF_FontPreview_ID is the proper typeface specimen card (fnt = the font, previewType = specimen | alphabet | pangram | weights | scale, showFontName); use it to present each font family the board proposes rather than a bare MF_Text "Aa". Give weights/scale cards enough height for their rows (about fs * 1.6 per row).`,
         mcpInputSchema: {
             type: 'object',
             properties: {
@@ -3531,7 +3927,7 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
                             items: {
                                 type: 'object',
                                 properties: {
-                                    t: { type: 'string', description: 'MF_Rectangle2, MF_Section, MF_Text, MF_ColorCode_ID, or MF_ImageComp' },
+                                    t: { type: 'string', description: 'MF_Rectangle2, MF_Section, MF_Text, MF_ColorCode_ID, MF_FontPreview_ID, or MF_ImageComp' },
                                     x: { type: 'number' }, y: { type: 'number' },
                                     w: { type: 'number' }, h: { type: 'number' },
                                     a: { type: 'number', description: 'Angle, always 0' },
@@ -3558,6 +3954,10 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
                                     selectedColor: { type: 'string', description: 'MF_ColorCode_ID only: the swatch colour, hex' },
                                     showHexCode: { type: 'boolean', description: 'MF_ColorCode_ID only: print the hex value under the swatch' },
                                     shapeType: { type: 'string', enum: ['full', 'circle', 'square'], description: 'MF_ColorCode_ID only: swatch shape' },
+                                    previewType: { type: 'string', enum: ['specimen', 'alphabet', 'pangram', 'weights', 'scale'], description: 'MF_FontPreview_ID only: what the card shows of the font set in fnt' },
+                                    showFontName: { type: 'boolean', description: 'MF_FontPreview_ID only: print the font name under the sample' },
+                                    showFontDetails: { type: 'boolean', description: 'MF_FontPreview_ID only: print the font source and style count' },
+                                    captionSize: { type: 'number', description: 'MF_FontPreview_ID only: font name / row label size in px' },
                                     img: { type: 'string', description: 'MF_ImageComp only, and only when this render includes images: "mfimg::" followed by a description of the picture (no text, letters or numbers in it).' }
                                 },
                                 required: ['t', 'x', 'y', 'w', 'h', 'e']
@@ -3903,6 +4303,38 @@ CHARTS DATA GATE - only include a render_chart item when the request actually ca
     // to map: the stored action IS the payload, so the client transform hands it straight to
     // showResults (single component) or processMultiBoardResults (a whole board).
     //
+    {
+        // render_boardedit: the public REST API's edit action (api.mockflow.com/v1).
+        // Create, move, resize, change and delete components on an existing board in one
+        // draw. The payload is the same compressed component list render_whiteboard
+        // takes, plus entries that carry an `id` (an existing component's cid) and only
+        // the properties to change, or `delete: true`. optimizer.generateLayout applies
+        // both kinds; the client transform in aitools.js keeps coordinates absolute.
+        //
+        // internalOnly: never offered to an agent. An agent that wants to edit a board
+        // does so through the API, which checks who may touch what before it gets here.
+        mcpToolName: 'render_boardedit',
+        internalOnly: true,
+        mcpDeclareLine: 'INTERNAL: the public API edit action.',
+        mcpDescription: 'Internal. Applies creates, updates and deletes to an existing board.',
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                components: {
+                    type: 'object',
+                    properties: { c: { type: 'array', items: { type: 'object' } } }
+                }
+            },
+            required: ['components']
+        },
+        clientAitype: 'genwhiteboard',
+        clientComp: null,
+        clientDataField: 'generatedwhiteboard',
+        clientPrompt: 'boardedit',
+        clientPromptField: null,
+        clientTransform: null,
+        recipeOutputKeys: []
+    },
     // internalOnly keeps it out of getToolDefinitions: an external agent cannot produce this
     // payload — it would have to BE the generators — so offering it as a tool would only
     // advertise something that always fails. It still reaches the client, because
@@ -4015,6 +4447,63 @@ IDEABOARD_MCP_REGISTRY.getToolDefinitions = function(opts) {
         };
     });
 };
+
+// Two-step tools. A render_* entry may carry mcpDirectReply(args): called without
+// its content it answers with live reference data instead of drawing. Every host
+// (hosted MCP, desktop MCP, bridge) asks here before it validates or maps the
+// call, so the rule lives in one place. Resolves to the reply text, or null.
+IDEABOARD_MCP_REGISTRY.directReply = async function(toolName, args) {
+    var entry = null;
+    for (var i = 0; i < this.length; i++) {
+        if (this[i].mcpToolName === toolName) { entry = this[i]; break; }
+    }
+    if (!entry || typeof entry.mcpDirectReply !== 'function') return null;
+    return entry.mcpDirectReply(args || {});
+};
+
+// The floor plan stamp catalog, read from the CDN manifest at the moment an agent
+// asks for it: the same file genfloorplan.js reads at the top of every generation,
+// and like there nothing is cached, so a stamp added to the CDN is on the next
+// reply. Footprints are grid units at r=0; a wall piece gives its length along the
+// wall and, for a swing door, how far it sweeps into the room.
+var FLOORPLAN_MANIFEST_URL = 'https://assets.mockflow.com/app/wireframepro/floorplanlibrary/manifest/manifest.json';
+async function floorPlanCatalogReply() {
+    var raw;
+    var controller = new AbortController();
+    var timer = setTimeout(function() { controller.abort(); }, 8000);
+    try {
+        var resp = await fetch(FLOORPLAN_MANIFEST_URL, { signal: controller.signal });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        raw = await resp.json();
+    } catch (e) {
+        return 'The floor plan catalog could not be fetched right now (' + (e && e.message) + '). Call render_floorplan with no rooms again to retry; never guess stamp keys.';
+    } finally {
+        clearTimeout(timer);
+    }
+    var assets = (Array.isArray(raw) ? raw : ((raw && raw.assets) || [])).filter(function(a) { return a && typeof a.key === 'string' && a.key; });
+    var cats = (raw && Array.isArray(raw.categories)) ? raw.categories : [];
+    var labels = {}, groups = {}, allOnWall = {};
+    cats.forEach(function(c) { if (c && c.id) labels[c.id] = c.label || c.id; });
+    assets.forEach(function(a) {
+        var cat = a.cat || 'misc';
+        var w = Number(a.w) > 0 ? Number(a.w) : 1, h = Number(a.h) > 0 ? Number(a.h) : 1;
+        var note = a.wallSnap ? (w + ' along the wall' + (h > 0.5 ? ', sweeps ' + h + ' of floor' : '')) : (w + '×' + h);
+        if (a.keepRatio) note += ', keeps proportions';
+        if (a.floor) note += ', floor piece';
+        if (!groups[cat]) { groups[cat] = []; allOnWall[cat] = true; }
+        groups[cat].push(a.key + ' (' + note + ')');
+        if (!a.wallSnap) allOnWall[cat] = false;
+    });
+    var order = cats.map(function(c) { return c && c.id; }).concat(Object.keys(groups));
+    var seen = {}, lines = [];
+    order.forEach(function(c) {
+        if (!c || !groups[c] || seen[c]) return;
+        seen[c] = true;
+        lines.push('- ' + (labels[c] || c) + (allOnWall[c] ? ' (placed ON a wall)' : '') + ': ' + groups[c].join(', '));
+    });
+    return 'FLOOR PLAN ASSET CATALOG, ' + assets.length + ' stamps, key (footprint in grid units at r=0). '
+        + 'Use EXACTLY these keys as item.asset, then call render_floorplan again with the finished plan:\n' + lines.join('\n');
+}
 
 // Helper: map MCP tool call to showResults gdata
 IDEABOARD_MCP_REGISTRY.mapToolToGdata = function(toolName, args) {
