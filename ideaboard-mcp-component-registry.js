@@ -697,38 +697,72 @@ IMPORTANT: Always display the returned URL to the user.`,
         mcpToolName: 'render_table',
         // Real-world/current data component: the local agent may web-research first.
         webResearch: true,
-        mcpDescription: `Create data tables and grids from CSV-formatted data — structured rows/columns for display (rosters, comparison tables, inventories, directories). NOT for spreadsheets needing formulas or calculations (use render_spreadsheet); NOT for strategy/brainstorming matrices like RACI, Eisenhower, BCG, Ansoff, priority or segmentation matrices (use render_whiteboard).
+        mcpDescription: `Create a board table of typed records: rows and columns where each column has a type (text, number, single/multi select with coloured options, date, checkbox, URL, media links, votes, sticky-note cells). Use it for rosters, comparison tables, inventories, directories, idea lists the team votes on, retro columns and simple 2x2 or SWOT grids that collect sticky notes. NOT for spreadsheets needing formulas or calculations (use render_spreadsheet); NOT for tasks moving through stages (use render_kanban); NOT for elaborate strategy canvases like RACI, BCG, Ansoff or segmentation frameworks (use render_whiteboard).
 
-FORMAT RULES:
-- First row = headers (column names)
-- Data rows follow, separated by \\n
-- Values separated by commas
-- Wrap values containing commas in double quotes
-- 5-15 data rows typical
-
-EXAMPLE (note the placeholder values - do not invent real-looking names or contact details):
-"Name,Email,Phone\\nGuest 1,person1@example.com,555-0100\\nGuest 2,person2@example.com,555-0101"
+HOW TO SHAPE IT:
+- Choose a type per field: select for a small fixed set of values with meaningful option colours, number for amounts with a footer summary, checkbox for yes/no, date for deadlines, stickies for cells that collect several short notes, votes when the team should vote on rows, text otherwise.
+- For a matrix, make the first field text with rowHeaders true (the row labels) and the other fields stickies.
+- Size each field's width to its longest value. Style the table to fit the content (theme, banded rows for long lists, all borders for dense comparisons).
+- Set style.scroll with a style.height when the data is too long or wide to take in at full size on the board; the table then keeps that size and scrolls inside. Leave it off for tables that read comfortably in full.
+- Each row lists one value per field, in field order. Use placeholder names instead of inventing real people or contact details.
 
 IMPORTANT: Always display the returned URL to the user.`,
         mcpInputSchema: {
             type: 'object',
             properties: {
-                data: {
-                    type: 'string',
-                    description: 'CSV-formatted data. First row is headers, subsequent rows are data. Use placeholder values for details the user did not provide. Example: "Name,Email,Phone\\nGuest 1,person1@example.com,555-0100"'
+                style: {
+                    type: 'object',
+                    description: 'Table styling.',
+                    properties: {
+                        theme: { type: 'string', enum: ['clean', 'soft', 'mint', 'peach', 'bold', 'sticky'], description: 'Colours the header, grid and banded rows: clean = white, soft = light blue, mint = light green, peach = warm, bold = dark header, sticky = note yellow.' },
+                        banded: { type: 'boolean', description: 'Alternate row tint.' },
+                        borders: { type: 'string', enum: ['all', 'rows', 'outer', 'none'], description: 'Grid lines.' },
+                        compact: { type: 'boolean', description: 'Tighter rows.' },
+                        fontSize: { type: 'number', description: 'Base text size in px, 12-22. 16 is normal.' },
+                        font: { type: 'string', enum: ['default', 'sketchy'], description: 'sketchy = hand-drawn look.' },
+                        textColor: { type: 'string', description: 'Default text colour as #RRGGBB.' },
+                        scroll: { type: 'boolean', description: 'Keep the table at a set size with rows and fields scrolling inside, for data too long or wide to read at full size.' },
+                        height: { type: 'number', description: 'scroll only: visible height in px, 200-1200.' }
+                    }
+                },
+                fields: {
+                    type: 'array',
+                    description: 'Columns, left to right.',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: { type: 'string' },
+                            type: { type: 'string', enum: ['text', 'number', 'select', 'multi', 'date', 'checkbox', 'url', 'media', 'icon', 'votes', 'stickies', 'person'] },
+                            width: { type: 'number', description: 'Column width in px, 60-400.' },
+                            options: { type: 'array', description: 'select/multi only.', items: { type: 'object', properties: { label: { type: 'string' }, color: { type: 'string', enum: ['blue', 'green', 'amber', 'grey', 'violet', 'pink'] } }, required: ['label'] } },
+                            summary: { type: 'string', enum: ['sum', 'avg', 'count', 'none'], description: 'number only: footer total.' },
+                            rowHeaders: { type: 'boolean', description: 'Style this column as bold row labels.' },
+                            imageSize: { type: 'string', enum: ['s', 'm', 'l'], description: 'media and icon only.' },
+                            voteLimit: { type: 'number', description: 'votes only: votes per person, 0 = unlimited.' },
+                            align: { type: 'string', enum: ['left', 'center', 'right'] },
+                            format: { type: 'object', description: 'number only: how values display. Values stay bare numbers.', properties: { style: { type: 'string', enum: ['number', 'currency', 'percent'], description: 'percent values are whole numbers: 25 shows as 25%.' }, currency: { type: 'string', description: 'ISO code, e.g. USD.' }, decimals: { type: 'number' }, thousands: { type: 'boolean' }, unit: { type: 'string', description: 'Shown after the number, e.g. MB, kg, hrs.' } } },
+                            dateFormat: { type: 'string', enum: ['short', 'weekday', 'long', 'numeric', 'iso'], description: 'date only.' }
+                        },
+                        required: ['name', 'type']
+                    }
+                },
+                rows: {
+                    type: 'array',
+                    description: 'Records. Each row is an array with one value per field (text/url string, number number, select option label, multi array of labels, date YYYY-MM-DD, checkbox boolean, media array of image or YouTube URLs, stickies array of short note texts, votes [], person "" and icon "" which are filled in on the board), or {"cells": [...], "fill": "#RRGGBB"} to highlight the row. Any cell may instead be {"value": ..., "bold", "italic", "strike", "color": "#RRGGBB", "fill": "#RRGGBB", "align"} - use formatting sparingly, to mark a key row or a cell that needs attention.',
+                    items: {}
                 }
             },
-            required: ['data']
+            required: ['fields', 'rows']
         },
 
         // Client-side rendering (showResults gdata mapping)
         clientAitype: 'gencomp',
-        clientComp: 'MF_AdvancedDataGrid',
-        clientDataField: 'generatedadvanceddatagrid',
+        clientComp: 'MF_BoardTable_ID',
+        clientDataField: 'generatedboardtable',
         clientPrompt: 'table',
         clientPromptField: null,
         clientTransform: function(args) {
-            return (args.data || '').replace(/\\n/g, '\n');
+            return JSON.stringify({ style: args.style || {}, fields: args.fields || [], rows: args.rows || [] });
         },
         recipeOutputKeys: ['table']
     },
@@ -1172,7 +1206,7 @@ STRUCTURE:
 - rooms: [{ id, label, type, x, y, w, h }] — type is one of living | bedroom | kitchen | dining | bath | office | hall | storage | outdoor | other. Rooms are axis-aligned rectangles that must NOT overlap and must TILE the outline so neighbours SHARE walls (right edge x+w of one equals x of the next; y+h equals y of the room below). Realistic sizes: bedroom 6–8 × 6–8, living 8–12 × 6–10, kitchen 5–8 × 4–6, bath 4×4 to 4×6, corridor 2–3 wide, meeting room 6–10 × 6–8.
 - items: [{ id, asset, x, y, r, w, h }] — asset is EXACTLY one key from the catalog answered in step 1 (never invent one); r is rotation 0 | 90 | 180 | 270 (footprint w×h is for r=0). w and h are OPTIONAL: this piece's own footprint in grid units when it should differ from the catalog size (multiples of 0.25, at least half the catalog side, at most three times it or 8 units, whichever is larger; doors and windows take only w, their length along the wall, and so does any key marked "keeps proportions", whose height follows its width and stays within half to one and a half times the catalog side). Leave them out for the normal size.
   • FURNITURE: x,y is the top-left corner and the whole footprint must lie INSIDE one room; items must not overlap.
-  • DOORS and WINDOWS: x,y is the START POINT ON THE WALL LINE; r=0 sits on a horizontal wall running toward +x, r=90 on a vertical wall running toward +y. Doors go on walls SHARED by two rooms plus exactly ONE entrance door on the outer wall; windows go on OUTER walls only. A swing door (door-single, door-double) sweeps a square as deep as it is wide into the room it opens to (r=0 swings +y, r=90 swings -x, flip mirrors): keep that square free of furniture (door near a corner, furniture on the other walls), or use door-sliding.
+  • DOORS and WINDOWS: x,y is the START POINT ON THE WALL LINE; r=0 sits on a horizontal wall running toward +x, r=90 on a vertical wall running toward +y. Doors go on walls SHARED by two rooms plus exactly ONE entrance door on the outer wall; windows go on OUTER walls only. A swing door (door-single, door-double) sweeps a square as deep as it is wide into the room it opens to (r=0 swings +y, r=90 swings -x, flip mirrors; hinge:true puts the hinge at the far end so the open leaf rests against the wall beyond x+w / y+w): keep that square free of furniture (door near a corner, furniture on the other walls), or use door-sliding.
 - labels: [{ id, text, x, y }] — optional short notes at a free point (e.g. "entry"); never repeat a room label or the title.
 - ids: rooms "r1","r2"…, items "i1","i2"…, labels "l1","l2"… — unique within the plan.
 
@@ -1181,10 +1215,11 @@ ASSET CATALOG — TWO STEPS. The stamp catalog lives on MockFlow's CDN and grows
 CONTENT GUIDELINES:
 - Start from the OUTLINE (e.g. 20 × 16 units for an 80 m² apartment) and split it into rooms with shared walls — no gaps, no overlaps.
 - Homes: 4–12 rooms. Offices, shops and venues: as many zones as needed (an open-plan area is one "office" room; a booth is one "other" room).
+- Curved or round architecture (a semicircular portico or bay, a rotunda, an oval or round room, a curved balcony or terrace, fanned entrance steps) must still be shown (for a real, named building include the curved rooms and porticos it is known for), but it cannot be a room shape: keep the room a rectangle and draw the curve with the matching curved stamp from the catalog (curved areas, arcs, porticos, colonnades, balconies, curved steps). An oval or round room gets the area stamp filling its rectangle; a curve outside the walls gets its own "outdoor" room against the building, sized to the stamp, with the stamp inside it and its flat edge against the building wall.
 - Furnish every room for its purpose with realistic footprints (bed + nightstand + wardrobe; counter run with sink/stove/fridge along a wall; toilet + washbasin + shower/bathtub; sofa + coffee table + tv; desks / desk clusters, meeting tables, whiteboards; display shelves + reception-desk as checkout). Roughly 10–40 items for a home, up to ~80 for a large office or shop. Leave walking space.
 - A BUILDING WITH SEVERAL FLOORS is one floor plan PER FLOOR, and it goes through plan_board, never through direct calls: call plan_board with one render_floorplan item per floor, lowest floor first, so the user picks the floors and they land together in one titled section. Every floor's brief names the SAME outline (the rooms of each floor tile the same rectangle as the ground floor) and the stamps the catalog marks "same place on every floor" (stairs, elevator, column) at the SAME x, y and r on every floor, each standing in a hall, landing or core. Title each floor ("Ground floor", "First floor").
 
-MODIFYING an existing plan (filling a frame that already has one): apply ONLY the requested change. Keep every room, item and label the change does not mention exactly as it is, with its id, and do not re-layout untouched rooms; something removed is simply left out, something added gets a new id. Copy title and planType back unchanged unless the change asks for them; the drawing style is not part of an edit, so leave theme out. The frame keeps its own room colours, notes, item sizes and underlay for every id you hand back.
+MODIFYING an existing plan (filling a frame that already has one): apply ONLY the requested change. Keep every room, item and label the change does not mention exactly as it is, with its id, and do not re-layout untouched rooms; something removed is simply left out, something added gets a new id. Copy title and planType back unchanged unless the change asks for them; the drawing style is not part of an edit, so leave theme out. The frame keeps its own room colours, notes and item sizes for every id you hand back.
 
 EXAMPLE:
 {
@@ -1300,6 +1335,92 @@ IMPORTANT: Always display the returned URL to the user.`,
         }
     },
     {
+        // Wireframe frame (MF_Wireframe_ID): one screen as a flat list of typed widgets
+        // drawn by the frame's own renderer in three switchable styles. The agent authors
+        // the document; the frame drops unknown types and clamps props to the catalog.
+        mcpToolName: 'render_wireframe',
+        // WHEN to pick this, for the bridge's deciding step, which sees this line and
+        // nothing else. Same rule as the server classifier (the wireframe
+        // detectionPromptDescription plus its multiBoardIntentHint).
+        mcpDeclareLine: 'A static UI wireframe/mockup screen drawn from a fixed widget catalog, and the DEFAULT for any UI request that carries no interactive wording — including a landing page or web page however the user words it ("design a landing page" is this, not render_designframe), and an EMAIL TEMPLATE or NEWSLETTER LAYOUT, which is a laid-out surface of sections rather than a graphic. ONE screen is one component, so a whole app, site, dashboard or product flow is SEVERAL screens: declare "plan" for those, not this.',
+        mcpDescription: `Create a UI WIREFRAME screen (render_wireframe) as a document of TYPED WIDGETS: navbar, appbar, sidebar, tabbar, button, input, card, list, table, chart, image box, hero, pricing and about sixty more, drawn by MockFlow in the frame's current style (outline, sketchy, blueprint, hi-fi, iOS liquid glass, Windows Fluent or Android Material, each in light or dark mode, with an optional brand colour and font, switched by the user at any time). You write the document, never HTML or CSS.
+
+USE THIS FOR any single product screen, at low or high fidelity: app screens, mobile screens, web pages, landing pages, dashboards, forms, login/signup/pricing/checkout screens, settings, feeds, email templates, or one section or widget on its own. Several screens of one app are one call per screen, each with the same device, the same style and the same navigation widget (same items, only the active one changing).
+DO NOT USE THIS for finished graphic material (render_designframe), a single picture (render_image), a clickable prototype (render_prototypelite), or diagrams.
+
+WIDGET CATALOG - TWO STEPS. The catalog is the frame's live renderer, so it is not listed here. STEP 1: call this tool with NO sections and NO nodes (empty arguments) and it answers with every widget key and its prop schema, grouped by category, and HOW A NEW SCREEN IS WRITTEN. STEP 2: call it again with the finished document, using ONLY those keys and props. Step 1 is needed once per conversation.
+
+A NEW SCREEN is written as STRUCTURE in "sections" (sections of rows of 12-column columns of items, inline groups side by side), exactly as the step-1 reply describes, never as x/y: MockFlow lays it out with the same margins, rhythm and auto layout as its own AI (cards and button rows become editable stacks). "nodes" with px positions are ONLY for MODIFYING an existing frame (below).
+
+DOCUMENT (title, device, size and look for both; nodes only when modifying):
+- title: short screen name (frame title)
+- device: "phone" (390x844, screen starts 44px down) | "tablet" (820x1180, 28px) | "desktop" (1280x800, 40px browser bar) | "mac" (1280x800, 38px macOS window title bar) | "windows" (1280x800, 32px Windows title bar) | "car" (car info display: 1316x516 with its body, CarPlay dock drawn at the left, the screen you fill is 1196x480) | "tv" (1312x812 with bezel and stand, the screen you fill is 1280x720) | "none" (800x600, no bar)
+- w, h: the frame's outer size in px; use the device's size unless a long page needs more height
+- theme: "outline" | "sketchy" | "blueprint" | "hifi" | "glass" | "fluent" | "android" - OPTIONAL, only when the user asks for a look (hand-drawn, blueprint, polished/hi-fi, iOS, Windows 11, Android/Material)
+- mode: "dark" - OPTIONAL, only when the user asks for dark mode or a dark screen (every theme but blueprint has one)
+- accent: "#rrggbb" - OPTIONAL, the brand colour, only when the user names one or the brand's colour is known; buttons, links and selection take it
+- font: a Google Fonts family name (e.g. "Inter") - OPTIONAL, only when the user names a font, or names a brand whose typeface you know (its Google Fonts match); otherwise the style's own face is used
+- nodes: [ { type, x, y, w, h, props } ] in DRAWING ORDER (first at the back). x,y is the TOP-LEFT corner in px relative to the SCREEN (below the device bar), multiples of 8, nothing past the right or bottom edge. props holds only the props the catalog lists for that type; a prop left out keeps its default. A node with "parent" belongs to that box or panel and moves with it: when the box has a "layout" it is an auto-layout stack that places the child (reorder the nodes to reorder the stack); without one (a card, or a group of widgets that belong together) the child sits at its own x and y. Keep "parent", "fillW" and "fillH" on every node you keep.
+
+LAYOUT (what a screen holds; with nodes also where): a navbar (desktop) or appbar (phone/tablet) at the top spanning the full width; a tabbar at the bottom of a phone app screen; a footer at the bottom of a web page; consistent margins (16 phone, 24-48 tablet, 48-120 desktop) and an 8 px rhythm; nothing overlaps unless it is a modal, toast or tooltip. A screen showing a dialog or bottom sheet puts a box with props {"fill": "overlay", "border": "none"} over the whole screen, after the page widgets and before the modal or sheet, so the page reads as dimmed behind it. A surface floating over the page (a dropdown, popover, floating button, a lifted card) may take the "shadow" prop ("soft" or "raised"); flat page content takes none. Prefer the composite widgets (card, list, table, form, hero, feature, pricing, product, stat, chartline, chartbar, keyvalue, sidebar). Real copy for the product, never lorem ipsum. 8 to 40 widgets is a normal screen.
+
+MODIFYING an existing frame (filling one that already has a document): send the COMPLETE updated document as "nodes", keeping the ids of everything you keep and title/device/w/h unchanged; something removed is simply left out, something added has no id. Keep each widget's "style" (its own look over the theme, see STYLE in the catalog) unless the user changes that widget's look; "style": {} clears it. Leave theme, mode, accent and font out unless the user asks to change the look; then send only what they asked for.
+
+IMPORTANT: Always display the returned URL to the user.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                title: { type: 'string', description: 'Short screen name shown as the frame title' },
+                device: { type: 'string', enum: ['phone', 'tablet', 'desktop', 'mac', 'windows', 'car', 'tv', 'none'], description: 'Device frame drawn around the screen; also the default size' },
+                w: { type: 'number', description: 'Frame width in px (default: the device width)' },
+                h: { type: 'number', description: 'Frame height in px (default: the device height; more for a long page)' },
+                theme: { type: 'string', enum: ['outline', 'sketchy', 'blueprint', 'hifi', 'glass', 'fluent', 'android'], description: 'Drawing style; leave out unless the user asked for a look' },
+                mode: { type: 'string', enum: ['light', 'dark'], description: 'Dark mode of the style; leave out unless the user asked for dark mode' },
+                accent: { type: 'string', pattern: '^#[0-9a-fA-F]{6}$', description: 'Brand colour for buttons, links and selection; leave out unless the user named one or the brand colour is known' },
+                font: { type: 'string', description: 'Google Fonts family name for the text; leave out unless the user named a font or a brand whose typeface is known' },
+                sections: {
+                    type: 'array',
+                    description: 'A NEW screen as structure, top to bottom: { name, bleed?, pin?, space?, rows: [ { cols: [ { span, align?, items: [ widget | { inline: [widgets] } ] } ], valign?, align? } ] }, as the step-1 reply describes. Leave out (with nodes) to receive the widget catalog instead of drawing',
+                    items: { type: 'object' }
+                },
+                aside: { type: 'object', description: 'With sections: an optional full-height rail down the left of an app screen, e.g. { "type": "sidebar", "w": 240, "props": {...} }' },
+                nodes: {
+                    type: 'array',
+                    description: 'Only when MODIFYING an existing frame: its widgets in drawing order with px positions and ids. A new screen uses sections instead',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string', description: 'Only when modifying: the id of a widget kept from the existing document' },
+                            type: { type: 'string', description: 'Widget key exactly as returned by the step-1 catalog call' },
+                            x: { type: 'number' }, y: { type: 'number' }, w: { type: 'number' }, h: { type: 'number' },
+                            props: { type: 'object', description: 'Widget props per the catalog schema' },
+                            style: { type: 'object', description: 'The widget\'s own look over the theme, as STYLE in the catalog describes; keep it as it is when modifying unless the user changes that widget\'s look' }
+                        },
+                        required: ['type', 'x', 'y', 'w', 'h']
+                    }
+                }
+            }
+        },
+
+        // Client-side rendering: MF_Wireframe_ID.sendGenText reads
+        // JSON.parse(gentext.data.generatedwireframe), so the whole args object goes into
+        // that field (same as render_floorplan). The frame drops unknown types and clamps props.
+        clientAitype: 'gencomp',
+        clientComp: 'MF_Wireframe_ID',
+        clientDataField: 'generatedwireframe',
+        clientPrompt: 'wireframe',
+        clientPromptField: null,
+        clientTransform: null,
+        recipeOutputKeys: ['uiwireframe'],
+
+        // Step 1 of the two-step call: no screen (sections or nodes) means "send me the catalog"
+        mcpDirectReply: function(args) {
+            var nodes = args && args.nodes, sections = args && args.sections;
+            if ((Array.isArray(nodes) && nodes.length) || (Array.isArray(sections) && sections.length)) return null;
+            return wireframeCatalogReply();
+        }
+    },
+    {
         mcpToolName: 'render_spreadsheet',
         // Real-world/current data component: the local agent may web-research first.
         webResearch: true,
@@ -1385,7 +1506,7 @@ IMPORTANT: Always display the returned URL to the user.`,
         // comptype join misses (pseudo/fills-many comptypes).
         planUIType: 'whiteboard',
         mcpDeclareLine: 'A loose brainstorming/strategy whiteboard (sticky notes, sections, named frameworks like SWOT/retro/canvas/matrices, dropped as individual components) — NOT any kind of diagram (architecture diagrams are render_cloudarchitecture, flowcharts/UML render_flowchart), NOT mood boards (render_moodframe), NOT kanban (render_kanban).',
-        mcpDescription: `Create whiteboards for freeform brainstorming AND structured strategy work: sticky notes and sections, named frameworks (SWOT, SCAMPER, Six Thinking Hats, Fishbone, empathy maps, Lean/Business Model Canvas, retrospectives, priority/RACI/Eisenhower matrices). NOT for diagrams — system/cloud architecture diagrams are render_cloudarchitecture, flowcharts/UML render_flowchart; NOT for mood/inspiration boards with imagery and color palettes (use render_moodframe); NOT for kanban-style status columns (use render_kanban) or UI/screen mockups and wireframes (use render_wireframelite).
+        mcpDescription: `Create whiteboards for freeform brainstorming AND structured strategy work: sticky notes and sections, named frameworks (SWOT, SCAMPER, Six Thinking Hats, Fishbone, empathy maps, Lean/Business Model Canvas, retrospectives, priority/RACI/Eisenhower matrices). NOT for diagrams — system/cloud architecture diagrams are render_cloudarchitecture, flowcharts/UML render_flowchart; NOT for mood/inspiration boards with imagery and color palettes (use render_moodframe); NOT for kanban-style status columns (use render_kanban) or UI/screen mockups and wireframes (use render_wireframe).
 
 STRUCTURE: { "components": { "c": [...] } }
 
@@ -1544,10 +1665,13 @@ IMPORTANT: Always display the returned URL to the user.`,
         recipeOutputKeys: ['whiteboard', 'moodboard']
     },
     {
-        // WireframeLite — a lightweight UI wireframe frame (MF_WireframeLite_ID). Its
-        // HTML→paintObjects conversion is a custom client flow, so mapToolToGdata returns
-        // null (signalled by clientIsHtmlConversion) rather than the generic mapping.
+        // WireframeLite (legacy, MF_WireframeLite_ID): retired in favour of render_wireframe.
+        // internalOnly keeps it out of every tool list and refuses agent calls; the entry
+        // stays so actions stored by it still import onto boards. Its HTML→paintObjects
+        // conversion is a custom client flow, so mapToolToGdata returns null (signalled by
+        // clientIsHtmlConversion) rather than the generic mapping.
         mcpToolName: 'render_wireframelite',
+        internalOnly: true,
         // WHEN to pick this, for the bridge's deciding step, which sees this line and
         // nothing else. Carries the same rule the server classifier uses (the wireframe
         // detectionPromptDescription plus its multiBoardIntentHint): a UI request with no
@@ -1722,18 +1846,17 @@ IMPORTANT: Always display the returned URL to the user.`,
         // all and every one of them falls back to MockFlow AI. Consumed by the MockFlow
         // Bridge (agentManager._toolsForComptype + boardHub.drawHtml).
         clientHtmlFillsInPlace: true,
-        clientTransform: null,
-        recipeOutputKeys: ['wireframe']
+        clientTransform: null
     },
     {
         // PrototypeLite — a runnable, clickable interactive prototype placed on an IdeaBoard as an
-        // MF_PrototypeLite_ID component (like render_wireframelite places a wireframe frame). The MCP
+        // MF_PrototypeLite_ID component. The MCP
         // agent GENERATES the prototype HTML and passes it as `html`; the backend only uploads it PRIVATE
         // to S3 and stores a pointer — NO server-side generation, NO AI credits. Like wireframelite this
         // is an HTML-input tool the backend processes into a stored action, so mapToolToGdata returns
         // null (clientIsHtmlConversion) and the client draws it via the 'prototypelite' action transform.
         mcpToolName: 'render_prototypelite',
-        // See render_wireframelite. This is the server's prototype detectionKeyDistinction:
+        // See render_wireframe. This is the server's prototype detectionKeyDistinction:
         // the user's OWN interactive wording is what elects a prototype, and it elects one
         // even for a whole app. Without the first half every "build an app" request lands
         // here; without the second half an explicit "interactive app" gets split into a plan.
@@ -1758,7 +1881,7 @@ IMPORTANT: Always display the returned URL to the user.`,
             'demo the flow', 'try the flow', 'walk through the flow',
             'working demo', 'click around'
         ],
-        mcpRequiresFallbackTool: 'render_wireframelite',
+        mcpRequiresFallbackTool: 'render_wireframe',
         imageSlots: true,
         imageSlotForm: 'url',
         imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY.
@@ -1772,7 +1895,7 @@ IMPORTANT: Always display the returned URL to the user.`,
 
 You generate the complete prototype as a single self-contained HTML document and pass it as "html". MockFlow stores it and places it on a new board as a runnable, clickable prototype — no AI credits are used, so YOU make every design decision here: device, screens, layout and styling. The output must match what the in-app AI generator would produce.
 
-USE THIS WHEN the user wants a working, clickable, multi-screen prototype or interactive demo they can navigate. For a single static wireframe frame, use render_wireframelite instead. ONE call covers the WHOLE flow: a prototype is a SINGLE component that wires all of its screens together, so a multi-screen prototype request is this one tool, never a batch of one item per screen and never a board plan.
+USE THIS WHEN the user wants a working, clickable, multi-screen prototype or interactive demo they can navigate. For a single static wireframe frame, use render_wireframe instead. ONE call covers the WHOLE flow: a prototype is a SINGLE component that wires all of its screens together, so a multi-screen prototype request is this one tool, never a batch of one item per screen and never a board plan.
 
 DEVICE & VIEWPORT (decide this FIRST — it drives the entire layout):
 - Set deviceType to match what the user asked for: a mobile/phone app → "mobile", a tablet/iPad app → "tablet", a web/desktop app → "desktop". Honor an explicit device word in the request (e.g. "CRM mobile app" → "mobile"). Default "mobile".
@@ -2734,7 +2857,7 @@ First decide, from the request, whether the app shows anything with a look of it
         // Depth and dimensional motion are built with CSS 3D transforms, never a 3D
         // engine — same contract and wording as genartifact.js buildSystemPrompt.
         mcpDeclareLine: 'A small WORKING collaborative mini app or game the team uses together live on the board — poll, spinning wheel, planning poker, timer, quiz, turn-based game, calculator — with shared live state for every viewer. NOT a wireframe or prototype OF an app design (those render a picture of a UI; this ships a runnable one), and NOT a parameterized data model (use render_datasimulator).',
-        mcpDescription: `Turn a small collaborative mini app YOU generate into a live, runnable MockFlow IdeaBoard tile, and get back the board URL. Use this when the user wants a working tool, widget, game, poll, wheel, timer or quiz they will actually interact WITH on the board — decision tools (spinning wheel, dice roller, random picker, live poll), meeting tools (planning poker, countdown timer, retro mood meter, standup order picker), learning tools (flashcards, live quiz with scoreboard), turn-based games (chess, tic-tac-toe, battleship, word games), and small calculators. NOT for wireframes/prototypes of an app design (use render_wireframelite / render_prototypelite) and NOT for what-if data models (use render_datasimulator).
+        mcpDescription: `Turn a small collaborative mini app YOU generate into a live, runnable MockFlow IdeaBoard tile, and get back the board URL. Use this when the user wants a working tool, widget, game, poll, wheel, timer or quiz they will actually interact WITH on the board — decision tools (spinning wheel, dice roller, random picker, live poll), meeting tools (planning poker, countdown timer, retro mood meter, standup order picker), learning tools (flashcards, live quiz with scoreboard), turn-based games (chess, tic-tac-toe, battleship, word games), and small calculators. NOT for wireframes/prototypes of an app design (use render_wireframe / render_prototypelite) and NOT for what-if data models (use render_datasimulator).
 
 PREFERRED INPUT — A BUNDLE OF FILES ("files"), which MockFlow assembles into one sandboxed document. This is what the editor's own generator produces, what the code panel edits, and what a later modify from you or from MockFlow AI patches file by file (a modify sends only the files that change with "merge": true). The bundle:
 - "shell.html": the document skeleton — <head> with <title>, Google Fonts <link>s and structural <style>; <body> with the root markup (containers and ids the scripts render into). NO <script> tags in it.
@@ -2771,7 +2894,7 @@ CONTENT DATA (for artifacts whose value comes from a body of subject matter):
 
 LIVE AI INSIDE THE ARTIFACT (optional): MFArtifact.tools.ai(prompt [,{json:true}]) -> Promise of model text (JSON string with json:true). Runs on MockFlow AI and charges the interacting user's credits. Use it ONLY when the AI must react to live user activity as part of the app's behavior (judge a submission, voice a character, give a context-aware hint, rewrite typed text — or play a turn in a game whose moves CANNOT be computed in code: creative, judged or free-text moves; an opponent whose moves ARE computable is written as code, see COMPUTER OPPONENT, never as tools.ai calls) — NEVER to produce the app's dataset (that is "data"), never in a loop/timer/on-load. Show a busy state and handle rejection (rate cap, no credits, readonly) with a friendly in-app message. BUSY FLAGS ARE LEASES, NOT LATCHES: any in-progress marker kept in shared state (generating, spinning, a turn lock) records who started it and when, transitions in ONE atomic setState per change (never split across separate writes), and is released on EVERY exit path — success, every failure, cancel. Renderers never trust it blindly: a busy flag whose owner is gone or whose start time is older than the operation could plausibly take is stale — ignore or clear it, so a closed tab or a crashed writer can never leave the app stuck busy for everyone forever.
 
-USER FILES (optional): MFArtifact.tools.pickAsset({accept:'image'|'pdf'|'any'}) -> Promise of { kind, name, items:[{url,width,height,page}] }. Opens the current user's MockFlow FILE LIBRARY (their uploaded project files) to pick from; each PDF page becomes one image item (in order), an image becomes one item; the URLs are ordinary <img> sources inside the artifact. Use for apps built around user-supplied material (PDF flipbook/slideshow, photo collage, annotate-and-vote, custom card decks). Call only from a clear user action and handle rejection ('cancelled', readonly, too-large) with a friendly message.
+USER FILES (optional): MFArtifact.tools.pickAsset({accept:'image'}) -> Promise of { kind:'image', name, items:[{url,width,height}] }. Opens the current user's MockFlow FILE LIBRARY (their uploaded project images) to pick one; nothing is copied and PDFs are not offered. Each url is an mflib:<fileid> REFERENCE: persist it in state as returned and show it only by building it into the markup passed to MFArtifact.render (<img src> or an inline background-image), which resolves it; never assign it imperatively. Use for apps built around user-supplied pictures (photo collage or slideshow, annotate-and-vote, custom card decks). Call only from a clear user action and handle rejection ('cancelled', readonly, not-available) with a friendly message.
 
 FEEDBACK MOMENTS (the app acknowledges what happens — work these out from THIS app's own logic, never from the examples here): every app has moments that matter, at two scales. The SMALL acknowledgement when a single action lands (accepted, rejected, counted, claimed, revealed): an inline toast, a control that pulses on success or shakes on refusal, a bar that fills. The CULMINATING moment when the app reaches whatever "conclusion" means for it (a result decided, a round or session over, a target met, someone ahead at the end): a designed moment, not one line of text — a brief celebratory effect you draw yourself (confetti burst, radial pop, glow sweep; canvas or CSS, your choice), the outcome stated in the app's own terms, and the action that follows it (play again, reset, next round). Build both. The rules that make them work: FIRE ONCE PER OUTCOME — every user's copy re-renders on EVERY state write by EVERY collaborator, so a celebration written straight into the render path replays forever on everyone's screen; derive a token identifying the outcome (round id, winner id plus finish time, game number), keep the last token THIS client celebrated in a plain local variable (never in shared state), and run the effect only when the token is new, never on load, on a timer, or on a plain re-render. SHARED OUTCOMES BELONG TO EVERYONE (an outcome in shared state celebrates on every viewer's screen, not only for whoever triggered it) while an acknowledgement of one person's own action stays local to that user. EFFECT LAYERS NEVER TRAP THE APP: an effect overlay is positioned inside the app, is pointer-events:none, and REMOVES ITSELF when it finishes (animationend/transitionend or a fixed duration, with a timeout fallback) — it must never sit over the UI swallowing clicks, and the app stays usable while it plays; keep it to a second or two. RESPECT REDUCED MOTION: under @media (prefers-reduced-motion: reduce) the burst degrades to the same information shown statically, never to nothing. All feedback is in-page and never blocks the next interaction.
 
@@ -3781,7 +3904,7 @@ CONTENT GUIDELINES:
             'ad', 'advert', 'advertisement', 'creative', 'graphic', 'graphics',
             'artwork', 'print', 'brand', 'branding', 'slide', 'slides', 'deck'
         ],
-        mcpRequiresFallbackTool: 'render_wireframelite',
+        mcpRequiresFallbackTool: 'render_wireframe',
         imageSlots: true,
         imageSlotForm: 'imageID',
         imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY - let photography anchor the layout.
@@ -3792,7 +3915,7 @@ CONTENT GUIDELINES:
         imagesOffGuidance: `THIS RENDER HAS NO IMAGERY - colour, shape and type carry the piece.
 - A full-bleed colour field, a bold type lockup or a geometric composition does the work the photograph would have done.
 - Emit NO MF_ImageComp at all, and never leave an empty box where a photo would have gone.`,
-        mcpDescription: `Create an editable graphic/marketing DESIGN inside a MockFlow IdeaBoard design frame (posters, flyers, banners, social posts, business cards, brand/slide layouts). For UI screens/wireframes use render_wireframelite; for brainstorming/strategy canvases use render_whiteboard. NOT a way to make a picture: this composes a multi-element design out of editable shapes and text, so "an image/photo/illustration of X" is render_image, not this tool, even though a design can contain imagery.
+        mcpDescription: `Create an editable graphic/marketing DESIGN inside a MockFlow IdeaBoard design frame (posters, flyers, banners, social posts, business cards, brand/slide layouts). For UI screens/wireframes use render_wireframe; for brainstorming/strategy canvases use render_whiteboard. NOT a way to make a picture: this composes a multi-element design out of editable shapes and text, so "an image/photo/illustration of X" is render_image, not this tool, even though a design can contain imagery.
 
 The design is a COMPRESSED component layout: an object { "components": { "c": [ ...components ] } } where each component uses short keys. Author real, positioned editable components.
 
@@ -3802,7 +3925,7 @@ STYLE KEYS: fc (fill colors array e.g. ["#2563eb","#2563eb"]), ft "solid", tx (t
 
 GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
 - Coordinates are canvas-relative and start at 0,0. The FIRST component is the background: x 0, y 0, w/h = the full canvas.
-- Choose a canvas size for the medium and keep EVERY component fully inside it: no part of any component (x, y, x+w, y+h) may fall outside the canvas. Typical sizes (same as the in-app generator): Instagram post 1080x1080, story 1080x1920, Facebook cover 1920x1080, business card 350x200, poster/flyer 400x600, A4 595x842, logo 400x400, website hero 1920x600, email header BANNER 600x200 (the graphic strip only — a whole email template or newsletter is render_wireframelite, not this), YouTube thumbnail 1280x720.
+- Choose a canvas size for the medium and keep EVERY component fully inside it: no part of any component (x, y, x+w, y+h) may fall outside the canvas. Typical sizes (same as the in-app generator): Instagram post 1080x1080, story 1080x1920, Facebook cover 1920x1080, business card 350x200, poster/flyer 400x600, A4 595x842, logo 400x400, website hero 1920x600, email header BANNER 600x200 (the graphic strip only — a whole email template or newsletter is render_wireframe, not this), YouTube thumbnail 1280x720.
 - Do NOT overlap components unless the overlap is deliberate (text sitting on its own background block). Plan a grid or column layout before emitting JSON and keep 10-20px between neighbours.
 - SIZE TEXT BOXES TO THEIR CONTENT. Text that does not fit its w/h is auto-shrunk on the board (down to 5px), so a heading in an undersized box renders unreadably small. Budget about fs * 1.6 of height per line of text and enough width for the longest line plus padding.
 - Font sizes (same as the in-app generator): headlines 18-24, body 12-16, captions 10-14 — scale up proportionally only on the large canvases (Instagram/poster-size), never on small media like business cards.
@@ -4110,7 +4233,7 @@ GEOMETRY (your x/y/w/h are used verbatim, so author a finished canvas):
         mediaComponent: true,
         mcpDescription: `Generate a standalone picture - an illustration, photo, artwork, icon or logo - and place it on the board as an image component. Use this whenever the user asks for an image/picture/photo/illustration of something.
 
-NOT for a design, poster or social post laid out from shapes and text (render_designframe), a UI screen (render_wireframelite), or a mood/inspiration board (render_moodframe) - those compose many components and can contain imagery, but they are not a picture.
+NOT for a design, poster or social post laid out from shapes and text (render_designframe), a UI screen (render_wireframe), or a mood/inspiration board (render_moodframe) - those compose many components and can contain imagery, but they are not a picture.
 
 NOT for a diagram or chart asked for in a visual style - "3D isometric diagram", "sketchy diagram", "hand-drawn flowchart", "a chart with an ocean theme". The style says how the artifact is DRAWN, not that a picture is wanted: use render_flowchart with the matching category (3d, sketchy, cloud-isometric) or render_chart, which render real, editable components in that style.
 
@@ -4170,7 +4293,7 @@ The clip is generated by MockFlow AI in the user's browser, not by you: write a 
         mediaComponent: true,
         mcpDescription: `Generate sound to listen to - music, a sound effect, speech, voiceover, narration or a jingle - and place it on the board as an audio player component.
 
-NOT for a UI mockup of a music or podcast app (render_wireframelite), and NOT for a written script (render_markdown).
+NOT for a UI mockup of a music or podcast app (render_wireframe), and NOT for a written script (render_markdown).
 
 The audio is generated by MockFlow AI in the user's browser, not by you: write a self-contained prompt describing the sound, mood, instruments or voice, and for speech include the exact words to be spoken. Call this once. The user confirms the spend before it runs, and the clip appears on their board when it is ready - never output a URL, and do not wait for one.`,
         mcpInputSchema: {
@@ -4239,7 +4362,7 @@ The list is shown to the user on their board to confirm or trim. When they click
 Guidelines:
 - Break the request into the components a product team would expect (e.g. a launch plan: kanban + timeline + mindmap; a request to WIREFRAME a multi-screen app: one wireframe per screen).
 - Each brief must stand alone (the generator sees ONLY the briefs, not this conversation): what the component shows, the actual content/data or how to derive it, and for screens the device, viewport width and visual style.
-- Multi-screen wireframes/apps: one render_wireframelite item PER SCREEN; give every screen brief the same design system and the SAME viewportWidth so the screens come out matching.
+- Multi-screen wireframes/apps: one render_wireframe item PER SCREEN; give every screen brief the same device, the same drawing style and the same navigation (the same navbar, sidebar or tab bar with the same items, only the active one changing) so the screens read as one app.
 - A building with several floors: one render_floorplan item PER FLOOR, lowest floor first; give every floor brief the same outline and the same stairs / lift / column positions so the floors stack.
 - NEVER ask a generator to fabricate specific real-world data the user did not provide - no invented vendor/company names, people, phone numbers, email addresses, URLs, prices or contact details. For tables and spreadsheets, describe the STRUCTURE and CATEGORIES ("columns: Item, Estimated Cost, Priority") and say to use neutral placeholder labels ("Item 1", "Vendor A") rather than inventing realistic-sounding entities.
 
@@ -4258,7 +4381,7 @@ CHARTS DATA GATE - only include a render_chart item when the request actually ca
                     items: {
                         type: 'object',
                         properties: {
-                            tool: { type: 'string', description: 'The render_* tool that draws this item (e.g. render_kanban, render_wireframelite)' },
+                            tool: { type: 'string', description: 'The render_* tool that draws this item (e.g. render_kanban, render_wireframe)' },
                             name: { type: 'string', description: 'Short name of the item (e.g. "Launch tasks", "Login screen")' },
                             brief: { type: 'string', description: 'Self-contained spec the item is generated from after the user confirms (the generator sees only this, not the conversation): content, real data or how to derive it, device/viewportWidth and style for screens.' }
                         },
@@ -4396,7 +4519,7 @@ CONTENT GROUNDING (applies to every value you generate):
  * where invented content reads as fact rather than as a placeholder.
  */
 var GROUNDING_EXEMPT = [
-    'render_wireframelite',
+    'render_wireframe',
     'render_prototypelite',
     'render_designframe',
     'render_moodframe',
@@ -4486,7 +4609,7 @@ async function floorPlanCatalogReply() {
     }
     var assets = (Array.isArray(raw) ? raw : ((raw && raw.assets) || [])).filter(function(a) { return a && typeof a.key === 'string' && a.key; });
     var cats = (raw && Array.isArray(raw.categories)) ? raw.categories : [];
-    var labels = {}, groups = {}, allOnWall = {};
+    var labels = {}, groups = {};
     cats.forEach(function(c) { if (c && c.id) labels[c.id] = c.label || c.id; });
     assets.forEach(function(a) {
         var cat = a.cat || 'misc';
@@ -4495,19 +4618,66 @@ async function floorPlanCatalogReply() {
         if (a.keepRatio) note += ', keeps proportions';
         if (a.floor) note += ', floor piece';
         if (a.shared) note += ', same place on every floor of a building';
-        if (!groups[cat]) { groups[cat] = []; allOnWall[cat] = true; }
-        groups[cat].push(a.key + ' (' + note + ')');
-        if (!a.wallSnap) allOnWall[cat] = false;
+        if (!groups[cat]) groups[cat] = { wall: [], free: [] };
+        groups[cat][a.wallSnap ? 'wall' : 'free'].push(a.key + ' (' + note + ')');
     });
+    // Wall pieces are told apart from stamps placed like furniture, even inside one category
     var order = cats.map(function(c) { return c && c.id; }).concat(Object.keys(groups));
     var seen = {}, lines = [];
     order.forEach(function(c) {
         if (!c || !groups[c] || seen[c]) return;
         seen[c] = true;
-        lines.push('- ' + (labels[c] || c) + (allOnWall[c] ? ' (placed ON a wall)' : '') + ': ' + groups[c].join(', '));
+        var g = groups[c], label = labels[c] || c;
+        if (!g.wall.length) { lines.push('- ' + label + ': ' + g.free.join(', ')); return; }
+        lines.push('- ' + label + ' (placed ON a wall): ' + g.wall.join(', ') + (g.free.length ? '; placed like furniture, not on a wall: ' + g.free.join(', ') : ''));
     });
     return 'FLOOR PLAN ASSET CATALOG, ' + assets.length + ' stamps, key (footprint in grid units at r=0). '
         + 'Use EXACTLY these keys as item.asset, then call render_floorplan again with the finished plan:\n' + lines.join('\n');
+}
+
+// The wireframe widget catalog, read from the widget library at the moment an
+// agent asks for it: the renderer for its helpers, then the widget files from
+// the library folder (a folder on disk today, the CDN folder once hosted - keep
+// it the same place genwireframe.js reads), so a widget added there is on the
+// next reply. Hosted server: the module sits under WebContent; the desktop app
+// keeps modules at its root. A copy with no module beside it (the bridge runs
+// the catalog it downloaded) asks the server it came from, which stamps its
+// origin on the copy it serves (catalogOrigin, see /call/api/mcpcatalog).
+var WIREFRAME_MODULE = ['../../WebContent/modules', '../modules'].map(function(base) { return require('path').resolve(__dirname, base, 'components/MF_Wireframe_ID/js/internal'); })
+    .filter(function(d) { return require('fs').existsSync(d); })[0] || '';
+var WIREFRAME_WIDGETS_URL = require('path').join(WIREFRAME_MODULE, 'widgets') + require('path').sep;
+async function wireframeCatalogReply() {
+    var W;
+    if (!WIREFRAME_MODULE && IDEABOARD_MCP_REGISTRY.catalogOrigin) return wireframeCatalogFetch(IDEABOARD_MCP_REGISTRY.catalogOrigin);
+    try {
+        var renderer = require('path').join(WIREFRAME_MODULE, 'wire-svg.js');
+        delete require.cache[require.resolve(renderer)];
+        W = require(renderer);
+        await W.loadWidgetsNode(WIREFRAME_WIDGETS_URL);
+    } catch (e) {
+        return 'The wireframe widget catalog could not be read right now (' + (e && e.message) + '). Call render_wireframe with no nodes again to retry; never guess widget keys.';
+    }
+    var count = Object.keys(W.WIDGETS).length;
+    // how a new screen is written: the in-app generator's own words (genwireframe.js)
+    var guide = '';
+    try { guide = require('../editor/aitools/genwireframe.js').structurePrompt(W); } catch (e) { guide = ''; }
+    return 'WIREFRAME WIDGET CATALOG, ' + count + ' widgets, as key (default w x h): prop:kind, ... Kinds: string, number, boolean, a|b|c (one of), string[] (list), string[][] (rows of cells), number[]. An icon prop is an icon name (home, search, user, cart, bell, settings, heart, star, plus, x, check, chevron-left/right/down/up, mail, lock, calendar, clock, camera, image, play, trash, edit, share, filter, download, info, globe, phone, location, eye, more, grid, list, refresh, logout, message, wallet, chart, zap, shield, gift, truck, credit-card, help, video, music, mic, bookmark, tag, folder, file, link, copy, sun, moon).\n'
+        + 'Use EXACTLY these keys as the widget "type" and only these props, then call render_wireframe again with the finished document:\n' + W.catalogText()
+        + (guide ? '\n\nA NEW SCREEN goes in "sections" (not "nodes"), written like this:\n' + guide : '');
+}
+
+async function wireframeCatalogFetch(origin) {
+    var controller = new AbortController();
+    var timer = setTimeout(function() { controller.abort(); }, 8000);
+    try {
+        var resp = await fetch(String(origin).replace(/\/+$/, '') + '/call/api/mcpcatalog/wireframe', { signal: controller.signal });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        return await resp.text();
+    } catch (e) {
+        return 'The wireframe widget catalog could not be fetched right now (' + (e && e.message) + '). Call render_wireframe with no nodes again to retry; never guess widget keys.';
+    } finally {
+        clearTimeout(timer);
+    }
 }
 
 // Helper: map MCP tool call to showResults gdata
