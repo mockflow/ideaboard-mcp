@@ -131,6 +131,7 @@ The server creates a new IdeaBoard and returns the URL. Open it in your browser 
 | `render_treediagram` | Sitemaps, org charts, hierarchy trees and work breakdown structures |
 | `render_floorplan` | Floor plans: rooms, doors, windows and furniture on a grid (call once with no rooms to get the stamp catalog, then with the plan) |
 | `render_markdown` | Rich documents with markdown formatting and AI-generated images |
+| `render_design` | Editable graphic designs: posters, flyers, banners, social posts, thumbnails, cards |
 
 ## How It Works
 
