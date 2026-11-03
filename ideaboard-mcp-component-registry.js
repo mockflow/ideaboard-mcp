@@ -53,6 +53,147 @@
  * tells the agent when to use it, so no entry needs its own wording for it.
  */
 
+/**
+ * The design spec render_design and render_videomaker share (a video scene is a design
+ * page): the elements and the craft, from design-svg.js catalogText() and gendesign.js
+ * designPrompt. Regenerate from them when either changes.
+ */
+var DESIGN_ELEMENTS = `<fill> is "#rrggbb", or a gradient {"type":"linear","angle":135,"stops":[{"o":0,"c":"#ff7a59"},{"o":1,"c":"#ff3d77"}]} (angle as in CSS linear-gradient: 90 runs left to right, 180 top to bottom, 135 top-left to bottom-right), or {"type":"radial","stops":[...]} (centre outwards), or a pattern {"type":"pattern","kind":"dots","color":"#1c7ce2","bg":"#e8f1fc","size":24} (kind: dots | grid | stripes | diagonal | checks | cross | waves | zigzag | confetti | grain | paper; grain and paper are textures; size: the repeat in px).
+
+Every element may also carry: "id" (keep it when editing), "rot" (degrees, clockwise about its centre), "op" (opacity 0-1), "shadow" {"x":0,"y":12,"blur":30,"color":"#000000","op":0.25} (also a glow: x 0, y 0, a bright colour), "g" (a group name: elements sharing one move and select together, e.g. a speech bubble and its words).
+
+TEXT {"type":"text","x","y","w","text","font","size","weight","color","align", optional "italic","lh","ls","upper","deco","stroke","bg"}
+- text: the words; "\\n" breaks a line. It wraps at w, and its height follows its lines (no "h").
+- font: a Google Fonts family name. size: px. weight: 100-900. color: "#rrggbb". align: left | center | right.
+- lh: line height as a multiple of the size (0.9-1.1 for display type, 1.3-1.6 for body). ls: letter spacing in em (-0.03 to 0.3; wide for small caps labels).
+- upper: true for all caps. italic: true. deco: underline | strike.
+- stroke: {"color","w"} outlined letters. bg: {"color","pad","radius"} a solid box behind the words (a label or highlight).
+- Inside "text", **word** sets it bold, *word* italic and ==word== in the text's "accent" colour: one word that stands out without a second text box.
+- list: bullet | number sets each line as a list item with its marker. fill: a gradient <fill> across the letters.
+
+SHAPE {"type":"shape","shape","x","y","w","h","fill", optional "stroke","sw","dash","radius"}
+- shape: rect | ellipse | triangle | diamond | pentagon | hexagon | octagon | star | arrow | chevron | trapezoid | parallelogram | plus | heart | halfcircle | quarter | pie | ring | arch | crescent | drop | righttriangle | cross | check | star4 | star6 | star8 | seal | shield | pin | cloud | blob | wave | torn | tape | banner | flag | cornerribbon | bookmark | tag | ticket | arrow2 | notch | curvedarrow | uturn | circlearrow | bracket | brace | corners | cube | cylinder | bubble | speech | thought | burst.
+- fill: <fill> or "none". stroke: "#rrggbb" outline colour, sw: its width px, dash: solid | dashed | dotted. radius: corner radius px (rect).
+
+IMAGE {"type":"image","x","y","w","h","prompt", optional "fit","radius","mask","filter","stroke","sw"}
+- prompt: what the picture shows. fit: cover (default, fills and crops) | contain. radius: corner radius px. stroke / sw: a border round the picture.
+- Photo collages and comic pages are grids of image panels with even gutters; a comic panel has a dark border ("stroke":"#111111", "sw" about 0.6% of the canvas). Speech bubbles are a "speech", "bubble" or "thought" shape with a text over it in the same "g"; sound effects a "burst" shape.
+- mask: none | ellipse | any shape name above (cuts the picture to that shape). filter: none | grayscale | noir | sepia | warm | cool | vivid | fade.
+- cast: the ids from the design's "look" of the characters or products the picture shows, e.g. ["maya"].
+
+LOOK (on the design, beside "els") {"style","cast":[{"id","description"}]} when its pictures belong together: comic panels, a story told in frames, a series of product shots, a set of portraits.
+- style: one art direction every picture shares (medium, line work, palette, lighting), e.g. "bold ink comic art, flat cel colours, halftone shading".
+- cast: each recurring character or product once, up to 4: "id" a short name, "description" its fixed look (age, build, face, hair, clothes and their colours; for a product its shape, material, colour, label). Every picture of it is painted from one reference drawing, so it looks the same in each.
+- Then each picture's "prompt" tells only its own scene: the action, the setting, the shot, the expression. Do not restate the style or the cast's looks there.
+
+LINE {"type":"line","x","y","w","color","sw", optional "dash","cap1","cap2","style","bend","from","to"}
+- a line from (x, y) to (x + w, y), turned by "rot". sw: thickness px. cap1 / cap2 (start / end): none | arrow | open | diamond | bar | round | circle.
+- style: straight | curve | elbow | wave | zigzag | sketch; bend: -100 to 100, how far a curve or an elbow strays. from / to: the ids of two elements it joins (a connector: it then runs between their edges, whatever x, y and w say).
+
+ICON {"type":"icon","x","y","w","h","icon","color", optional "style","sw","color2"}
+- icon: one of these names: check, check-circle, x, x-circle, plus, minus, plus-circle, info, alert-triangle, help-circle, star, heart, bookmark, flag, bell, search, settings, menu, more, filter, eye, lock, unlock, key, circle, arrow-right, arrow-left, arrow-up, arrow-down, arrow-up-right, chevron-right, chevron-down, refresh, trending-up, trending-down, mail, phone, message, messages, send, at-sign, megaphone, mic, video, share, user, users, user-plus, user-check, team, smile, person, briefcase, building, store, shopping-cart, shopping-bag, credit-card, wallet, coin, coins, banknote, piggy-bank, receipt, tag, percent, bar-chart, line-chart, pie-chart, target, gauge, database, layers, grid, list, presentation, clock, calendar, hourglass, stopwatch, alarm-clock, laptop, monitor, smartphone, cloud, wifi, battery, chip, code, link, shield, shield-check, globe, server, download, upload, camera, image, play, pause, music, headphones, film, book, pencil, palette, home, map-pin, map, compass, plane, car, truck, bus, bicycle, train, ship, luggage, coffee, utensils, pizza, apple, cake, wine, burger, ice-cream, heart-pulse, pill, medical, first-aid, stethoscope, syringe, dumbbell, tooth, sun, moon, cloud-rain, snowflake, umbrella, leaf, tree, flower, droplet, flame, mountain, bolt, recycle, earth, graduation-cap, book-open, lightbulb, award, trophy, puzzle, ruler, brain, gift, clipboard, folder, file, file-text, paperclip, trash, printer, package, scissors, rocket, sparkles, crown, gem, thumbs-up, hand-heart, fingerprint, planet, quote. Another word draws the closest of them.
+- style: solid (filled, the default) | line (outlined; sw its stroke weight, 1-3). color: "#rrggbb". Keep w = h. color2: a second colour that fills the form behind the lines (duotone). One style and size per set of icons.
+- bg: {"shape":"circle","color":"#e8f1fc"} a badge behind the glyph (shape: circle | rounded | square | blob | ring); the glyph sits inside it, so the box is the badge.
+
+TABLE {"type":"table","x","y","w","h","rows", optional "head","font","size","color","headBg","headColor","stripe","line","align","radius"}
+- rows: [["Plan","Price"],["Pro","$12"], ...] up to 20 rows of 8 cells; the first is the header unless "head": false. Rows share the height evenly. stripe: a colour for every other row.
+
+QR {"type":"qr","x","y","w","data", optional "color","bg"}: a scannable QR code that opens "data" (a link or text); square; dark on light.
+
+MAP {"type":"map","x","y","w","h", optional "look","regions","pins","focus","land","color","low","stroke","ink","font","size"}: a real map of the world's countries.
+- look: flat | dots | outline (dots: a dot-matrix map, the classic infographic look). land: the colour of countries left plain.
+- regions: [{"id":"US","value":27.4}, {"id":"FR"}] by ISO two-letter code: values shade from "low" to "color" (a choropleth); no value marks the country in "color".
+- pins: [{"lat":48.86,"lng":2.35,"label":"Paris"}] up to 30. focus: ["DE","FR","IT"] frames those countries (a region); none shows the world (about 2.5 times as wide as tall).
+
+CHART {"type":"chart","kind","x","y","w","h","data", optional "colors","font","size","color","track","unit","prefix","max","values","labels"}
+- kind: column | grouped | stacked | bar | line | area | pie | donut | scatter | radar | heatmap | treemap | waffle | progress | ring | gauge. column / bar / line / area / pie / donut / treemap show one value per row; progress (a bar), ring, gauge (a half ring) and waffle (100 cells) show one value out of "max" (default 100).
+- data: [{"label":"Q1","value":42}, ...], up to 12 rows (one row for the one-value kinds). Use only numbers the request gives, the web research gives, or that are widely published; never invent statistics.
+- Several series (grouped, stacked, line, area, radar, heatmap): each row carries "values": [one number per series] and the chart names them in "series": ["2024","2025"]; the chart draws its own legend for them, so add none beside it. scatter: each row a point, "x" its place across and "value" its height.
+- colors: the series colours (one colour for all bars, or one per row; pie and donut take one per row). font / size / color: the labels' face, px size and colour. track: the empty part of a bar or ring. unit: a suffix such as "%"; prefix such as "$". values / labels: false hides them.
+IN THIS TOOL an image's picture is asked for with "src": "mfimg::" plus its description when the render includes imagery (see the imagery note); otherwise leave image elements out. A real picture URL may also go in "src".`;
+
+var DESIGN_CRAFT = `✅ DESIGN CRAFT
+- One clear focal point and a strong hierarchy: the headline is 3-6 times the
+  body size; at most 3-4 text sizes; captions and labels small and often
+  letter-spaced uppercase.
+- Lay it out on a grid: consistent outer margins (6-9% of the short side),
+  aligned left edges or a centred axis, related items grouped, generous space.
+- Type: one or two Google font families chosen for the mood (a display face
+  for headlines, a clean text face for the rest). Display type is set tight
+  (lh 0.9-1.1). Body text is at least 2.4% of the canvas's short side so it
+  reads on a phone.
+- Colour: a deliberate palette of 2-4 colours plus neutrals. Every text has
+  strong contrast (4.5:1) with whatever is behind it; over a photo, put a
+  scrim (a shape with "op") or a solid block behind the words.
+- Size every text box: w wide enough for its longest word and for the line
+  breaks you want (about 0.55 x size px per character for most faces, 0.42
+  for condensed display faces such as Bebas Neue, Oswald or Anton). The text
+  wraps inside w and its height follows the lines.
+- Buttons and badges are a rect (radius for a pill) with a text centred over
+  it: the text's x, w and centre line match the rect's.
+- Shapes do the decorating: colour blocks, circles, blobs of colour cut off by
+  the canvas edge, dividers, frames; lines for rules and arrows. Shapes and
+  pictures may run off the canvas edge; every word stays fully inside it,
+  clear of the margin.
+- Real copy for the request: the actual headline, offer, date, place, prices
+  and call to action, never lorem ipsum. Details the user did not give get
+  plausible values.
+- Facts and figures are real, never made up. Use, in this order: figures the
+  request gives; figures from the web research block when the request carries
+  one (cite the source it names); otherwise widely published figures you know
+  well (a country's GDP or population, a company's revenue, market value,
+  users or founding year, a record): give the year they belong to, round them
+  to 2-3 significant figures and mark them as estimates ("approx.", "est.").
+  Never invent a figure nobody publishes (a survey result, an opinion share, a
+  market share you do not know) and never credit one to a study or an
+  organisation the request or the research does not name, unless that
+  organisation is the standard publisher of that series. Only when no real
+  figures exist for the subject, use sample figures and say so in a small
+  "Sample data" note.
+- Icons: an "icon" element beside a stat, a step, a feature or a contact line
+  reads faster than words alone; keep icons one size and one colour per set.
+- Numbers that compare belong in a "chart" (column, bar, line, pie, donut) or
+  a progress bar or ring for one share, not in hand-drawn shapes.
+
+✅ INFOGRAPHICS AND DATA PIECES - they SHOW the data; a list of text cards is
+not an infographic.
+- Lead with the finding: a headline that states it, and one hero visual (a big
+  number or the main chart) taking the most space.
+- A request for the top, biggest or leading things of a kind is a ranking:
+  rank them by one measure you state (market value, revenue, users, size) and
+  show that measure for each, as a ranked chart or as values beside them.
+- Figures by country or place belong on a "map" (countries shaded by value,
+  or pins), places named without figures on a dotted map with pins.
+- Every set of comparable numbers becomes a chart with its values labelled:
+  ranked bars for a ranking (sorted, biggest first), columns or a line over
+  time, a donut or pie for parts of a whole. The unit and the year go in its
+  title or subtitle.
+- Each item in a set gets a visual anchor beside its words: an icon, a rank
+  number in a disc, its value large, or a bar sized to its value. Items of a
+  set repeat one module: the same size, the same parts in the same places.
+- Combine 2-4 visual devices: a row of big stats, a chart, an icon list, a
+  timeline, a comparison, a pictogram row of repeated icons, a process of
+  steps. Number the sections when the piece reads as a sequence.
+- With no size named, use an "Infographic" canvas: a tall one gives the
+  sections room.
+- End with a small source line: where the figures come from and their year.
+- It must look GRAPHIC, not like a web page: pictures, shapes and numbers carry
+  more of the area than words. Avoid stacks of white text cards with an accent
+  bar (that is a UI look). Instead:
+  - big numbers set huge in the accent colour, with a short label;
+  - each point's icon large inside a coloured circle or blob (icon ~45% of the
+    badge), the same treatment for every point;
+  - a sequence drawn as a path: numbered discs joined by a line or arrows,
+    zigzagging down the page, or a winding road, or a timeline spine;
+  - colour bands or blocks that change from section to section, shapes cut off
+    by the edges, decorative dots and rings that echo the palette;
+  - words short: a 2-5 word title and at most ~14 words per point.
+- Vary the layout from section to section (a hero stat, then a chart, then an
+  icon grid, then a path); never the same module repeated down the page.
+- 6 to 25 elements is a normal design; dense pieces such as menus and
+  infographics run 40 to 120. The first element is usually the background
+  treatment (or set "bg").`;
+
 var IDEABOARD_MCP_REGISTRY = [
     {
         mcpToolName: 'render_flowchart',
@@ -488,7 +629,7 @@ CRITICAL FORMAT RULES:
 - diagramType picks the icon set: "aws", "azure", "gcloud", "kubernetes", "sap", "sapbtp", "oracle", or "cisco"
 - Send TOPOLOGY ONLY. The renderer computes every position, size, connector side and route from the structure you send, so any geometry you write is discarded.
 - NEVER send width, height, fromSpot or toSpot.
-- flowDirection is the axis the architecture reads along, and the layout engine lays the sections along it: "horizontal" sets them in a row, "vertical" stacks them. Send it on every diagram.
+- flowDirection is the axis the architecture reads along, and the layout engine lays the sections along it: "horizontal" sets them in a row, "vertical" stacks them. Send it on every diagram. A direction the user asks for always wins.
 - loc is a ROUGH reading-order hint only: order it along the flowDirection you chose, giving components in the same stage the same position on the other axis. Round numbers are fine — real coordinates are computed on render.
 - Use "\\n" for multi-line text labels (e.g., "Application\\nLoad Balancer")
 
@@ -566,7 +707,7 @@ IMPORTANT: Always display the returned URL to the user.`,
                 flowDirection: {
                     type: 'string',
                     enum: ['horizontal', 'vertical'],
-                    description: 'The axis the architecture reads along, and the axis the layout engine lays the sections along. "vertical" for sections that are stages of one thing (tiers, layers, planes, phases, a stack, an ingest/process/store pipeline); "horizontal" for sections a request travels between (an outside actor, a network, a region, a provider boundary). Prefer "vertical" when both fit.'
+                    description: 'The axis the architecture reads along, and the axis the layout engine lays the sections along. "vertical" for sections that are stages of one thing (tiers, layers, planes, phases, a stack, an ingest/process/store pipeline); "horizontal" for sections a request travels between (an outside actor, a network, a region, a provider boundary). Prefer "vertical" when both fit. A direction the user asks for always wins.'
                 },
                 class: {
                     type: 'string',
@@ -2883,10 +3024,19 @@ TILE, NOT APP (the shape of every artifact; it sits next to sticky notes and is 
 - ONE MAIN THING ON SCREEN: the poll's options, the die and its Roll button, the list, the board, the timer. It takes most of the tile, in large type.
 - AT MOST THREE REGIONS: a slim header (the live heading such as the question, plus small icon buttons), the main thing, and an optional one-line footer (status, last action, a count).
 - SECONDARY THINGS ARE TUCKED AWAY, the way a phone app does it: people as a small avatar stack in the header; help behind a "?" icon button; occasional actions (new round, reset, clear completed, add option, settings) in a "⋯" menu; secondary lists and editors (editing the options, history, the full member list) in a bottom sheet or popover that slides over the tile and closes again; a past result as one line ("Last: Sushi") that opens the sheet when tapped.
-- NEVER: sidebars, side columns of panels, rows of stat tiles, dashboards, several screens behind tabs, or a separate results panel next to the thing it counts.
+- NEVER: sidebars, side columns of panels, rows of stat tiles, dashboards, several screens behind tabs (unless SEVERAL VIEWS applies), or a separate results panel next to the thing it counts.
 - NUMBERS LIVE IN WHAT THEY COUNT: a vote share fills its option row as a bar with the percentage on the row; a score sits on the player; a tally sits on its item. Never a second chart that repeats the same items.
 - LIGHT, BOARD-NATIVE LOOK: white tile, IdeaBoard blue (#1c7ce2) for actions, soft greys, rounded controls, Source Sans Pro. Never a dark app theme unless the request names one.
 - SIZE: send the smallest width and height the content reads well at, usually 320 to 480 wide; larger only for boards and games that need the room.
+
+SEVERAL VIEWS (only when the request itself asks for several connected screens a person moves between; never split a one-job tile into views to fill space):
+- Lay it out the way a calm phone app uses a bigger screen. A quiet top bar: text tabs for the top-level views (the active one underlined), or a back link and a centred title on a view you drilled into; members and the "⋯" menu on the right, nothing else crowding it.
+- One centred reading column (roughly 600 to 700px on a large tile, full width on a small one), wider only for content that is itself a grid such as a month calendar. No grids of cards and no permanent side panels; a long single-item page may keep a faint section outline beside the column.
+- One filled main action per view, pinned in a bottom bar that stays visible while the column scrolls. Every other action is a quiet link, a dropdown or in the "⋯" menu.
+- Lists are rows (title, one line of detail, one meta line). A row that leads somewhere opens on a click anywhere in it and shows a visible next-step button saying where it goes. Make the path from one stage to the next obvious in plain words: group items by where they stand (what is under way above what is waiting) instead of adding a separate flag for the same choice.
+- Secondary controls on rows and sections stay visible but quiet, never hidden until hover (touch screens cannot hover).
+- Long input becomes a few short steps; comparing alternatives shows one at a time with a switcher; filters live in one menu.
+- Transient messages appear where they never cover the main action or the controls.
 
 INPUT — A BUNDLE OF FILES ("files", a map of path -> content; key order is script order):
 - "shell.html": <head> with <title>, the Google Fonts <link>s and structural <style>; <body> with the root containers the scripts render into. NO <script> tags.
@@ -2900,9 +3050,10 @@ INPUT — A BUNDLE OF FILES ("files", a map of path -> content; key order is scr
 
 RUNTIME, injected before your scripts (never define or overwrite it). window.MFArtifact provides EXACTLY these, and an upload calling anything else is rejected:
   getState() -> the shared state object; setState(patch [,{undoable:false}]) -> merge a patch and sync it to everyone; onStateChange(cb)
-  me() -> {id, name, avatar}; users() -> [{id, name, avatar, online}] board members; onUsersChange(cb); readonly()
+  me() -> {id, name, avatar}; users() -> [{id, name, avatar, online}] board members; onUsersChange(cb); readonly(); isPublic() (public-link visitor: show no names, initials or photos and no setup forms or inputs)
+  now() -> ms on the shared server clock (same instant on every screen)
   render(el, html) -> non-destructive DOM morph; getData() -> content data (null before 'mfartifactready'); t(key, fallback), copy(); theme()
-  tools.ai(prompt [,{json:true}]) and tools.pickAsset(opts) (optional, see below). Readiness is the document event 'mfartifactready'; there is no ready(), state(), on() or subscribe().
+  tools.ai(prompt [,{json:true,fast:true}]), tools.pickAsset(opts) and tools.image(opts) (optional, see below). Readiness is the document event 'mfartifactready'; there is no ready(), state(), on() or subscribe().
 
 COLLABORATION (the board is shared; build it into the tile compactly):
 - Render only after 'mfartifactready', exclusively FROM state, and again on every onStateChange, so every user sees the same thing.
@@ -2911,26 +3062,29 @@ COLLABORATION (the board is shared; build it into the tile compactly):
 - PEOPLE ARE REAL BOARD MEMBERS: never hardcode or invent names; build person data from users()/me() and key it by user id (state.votes[me().id] = choice). Taking part is an explicit action recorded in state; a count from users() is "members", never "players" or "voted". Online status is display only.
 - SHOW WHO IS HERE AND WHO DID WHAT, compactly (required on every shared tile): the header carries a small avatar stack of the members (up to 4 chips, then a "+N" button opening a scrollable sheet), marking those who have acted where acting is the point (voted, joined); anything a person creates, picks or claims carries their small avatar (the voter's avatar on the row they picked, the creator or assignee on a task, the occupant in a seat); a shared action names who did it in one line ("rolled by Ana"). Names go on .mf-tip tooltips and ellipsize. A tile whose job involves no people (a plain timer, a calculator) may skip the stack.
 - AVATAR CHIP: the initial letter on a color derived from a small hash of the user id (stable per person, readable white text), with the user's avatar photo layered on top as an <img> when the value is set (built into the markup you pass to render, onerror removing it); never a literal URL in the source.
+- STANDINGS: decide from the request whether people compete or score against each other. When they do, keep each person's result in state keyed by user id and give a ranked leaderboard of real members tucked away per TILE, NOT APP, the leader and your own place visible at a glance; when nobody is ranked, build none.
 - PERSON CONTROLS: when the job involves choosing somebody (assign a task, pick who goes next), give a compact picker of real members from users(), never free-text names.
 - Shared randomness is deterministic from a seed stored IN STATE. High-frequency writes (moves, ticks) use {undoable:false}; a tick with nobody interacting is never saved, so store the start time and derive elapsed time from it.
+- REAL-TIME PLAY (things moving continuously that several people affect: physics, racing, action): each screen writes only its own key with {undoable:false}, at most about 20 times a second, and other screens get it roughly 0.1 s later. Stamp every event with MFArtifact.now(), the shared server clock (Date.now() can be seconds apart between machines), and place remote objects by extrapolating from that stamp. Give each outcome one owner screen (the player the ball is heading at decides the save or the goal; the shooter decides their own shot); other screens predict it and ease into the owner's result, and speeds stay low enough that a correction is a small nudge, never a jump.
 
 CONTENT DATA: when the tile renders from a body of subject matter that could be swapped while the app stays the same (quiz questions, a deck, prompts), send it as "data" (one JSON object) and read it with MFArtifact.getData() inside or after the 'mfartifactready' handler. The options a user typed into the request are the app's own configuration, not content data. A getData() app without "data" is rejected. Send dataHint with it: "none" when it is machinery or a few small values, otherwise the short instruction a user would type to change it.
 
-LIVE AI (optional): MFArtifact.tools.ai(prompt [,{json:true}]) charges the interacting user's credits. Only when the AI must react to live activity (judge a submission, a hint, rewrite typed text); never for the content, never on load or a timer. Show a busy state and handle rejection. USER FILES (optional): MFArtifact.tools.pickAsset({accept:'image'}) opens the user's file library from a clear user action; store the returned mflib: url as is and show it only through render markup.
+LIVE AI (optional): MFArtifact.tools.ai(prompt [,{json:true}]) runs on the user's local agent when one is connected, else charges their credits; add fast:true when the user waits on each reply (an AI opponent's move) to keep it on the quicker MockFlow AI. Only when the AI must react to live activity (judge a submission, a hint, rewrite typed text); never for the content, never on load or a timer. Show a busy state and handle rejection. USER FILES (optional): MFArtifact.tools.pickAsset({accept:'image'}) opens the user's file library from a clear user action; store the returned mflib: url as is and show it only through render markup. AI PICTURES (optional): MFArtifact.tools.image({prompt,width,height}) generates a picture without text, tools.image({cutout:'mflib:<id>'}) removes a library picture's background; both resolve like pickAsset, land in the user's file library and charge their credits. Only from a clear user action with a busy state, never on load or in a loop; handle rejection.
 
 HARD RULES (a CSP enforces them):
 - Self-contained: no external scripts, stylesheets, images, iframes or media, except Google Fonts <link> tags. No fetch/XHR/WebSocket, eval/new Function, storage APIs, window.open, or parent/top. No alert/confirm/prompt: all feedback is in the tile.
 - FONTS: load Source Sans Pro from Google Fonts and apply it with your own body and heading rules; another family only when the request names a style that calls for it.
 - ICONS: Bootstrap Icons class names only (<i class="bi bi-play-fill"></i>), no stylesheet linked for them, never emoji as icons. Icon-only buttons get an aria-label and a title.
-- STYLING: Tailwind utilities are available with the IdeaBoard palette (primary #1c7ce2, primary-dark, primary-soft, accent, surface, muted, rounded-mf) plus CSS variables (--mf-primary, --mf-surface, --mf-border, --mf-text, --mf-muted, --mf-radius, --mf-shadow) and base classes (.mf-btn, .mf-btn-ghost, .mf-card, .mf-input, .mf-chip, .mf-avatar, .mf-tip). Never include Tailwind or redefine tailwind.config. Your own CSS always wins over Tailwind's base reset.
+- STYLING: Tailwind utilities are available with the IdeaBoard palette (primary #1c7ce2, primary-dark, primary-soft, accent, surface, muted, rounded-mf) plus CSS variables (--mf-primary, --mf-surface, --mf-border, --mf-text, --mf-muted, --mf-radius, --mf-shadow) and base classes (.mf-btn, .mf-btn-ghost, .mf-card, .mf-input, .mf-chip, .mf-avatar, .mf-tip). Never include Tailwind or redefine tailwind.config. Your own CSS always wins over Tailwind's base reset. Never name your own classes after a Tailwind utility (outline, hidden, border, ...): Tailwind styles those classes too.
 - CHARTS: Chart.js v3 is injected as the global Chart when a file uses it. Use it ONLY when a chart is the point of the request (a trend across rounds, a distribution the user asked to see); poll results, tallies and single numbers live in the thing they count. A chart sits in a sized wrapper with maintainAspectRatio:false, outside the morphed markup, created once and updated in place.
 - NO FORM SUBMISSION: submit events and type="submit" never fire in the sandbox; wire click handlers and make Enter trigger the same action.
 - RESPONSIVE: html/body and the root fill 100% of the frame; never 100vh or a pixel min-width/min-height on the root or a column. Nothing is cut off sideways. Only a growing region (a list, a log) scrolls, in its own area with min-height:0 inside a flex column.
+- NEVER MOVE THE BOARD AROUND THE TILE: scrollIntoView() and a plain focus() also scroll the page that holds the tile. Scroll your own container by setting its scrollTop, and focus with {preventScroll:true}.
 - Crash-free JS: null-check every lookup. A tile that throws on load or shows nothing is rejected and not stored.
 
 DESIGN (a finished, board-native tile, never a plain HTML page and never a crowded app screen):
 - WHITEBOARD LEGIBILITY: interface and body text 15px or larger, captions never below 13px, the values that carry the tile (options, result, timer, whose turn) 20px or larger. text-xs/text-sm are caption sizes. When space is tight, simplify or tuck things away; never shrink text.
-- One spacing scale (multiples of 4px), aligned edges, one radius family, one shadow treatment, no default browser styling; form controls inherit the typography and get a visible :focus-visible state.
+- One spacing scale (multiples of 4px), aligned edges, one radius family, one shadow treatment, no default browser styling; form controls inherit the typography and get a visible :focus-visible state. A <select> draws its own chevron (appearance:none, padding-right about 36px, an inline SVG data: background-image about 12px from the right; background-color, never the background shorthand), so the arrow never sits against the edge.
 - No static title inside the tile (the board frame shows the name); an in-tile heading only when it carries live information (the question, the round, whose turn).
 - Controls have hover, active, disabled and selected states with short transitions; a state that changes a background restates the text color in the same rule. A change of state animates briefly (a bar fills, a die rolls, a row slides in), respecting prefers-reduced-motion.
 - OVERLAYS (menus, popovers, bottom sheets, <dialog>) carry their own padding (16-24px), radius, max-width and max-height with internal scroll, and close on Escape and a tap outside. Small hints use the injected tooltip: class="mf-tip" data-tip="text" and nothing else; never your own tooltip CSS.
@@ -3053,7 +3207,7 @@ CONTENT GROUNDING (applies to every value you generate):
         // mockup fragment with pre-filled demo results, no <!doctype html>, no
         // MFArtifact. Any catalog entry may declare this field; the bridge appends
         // whichever apply, no tool-specific engine code.
-        clientFillContract: 'render_artifact ships a RUNNABLE tile, not a picture of one: a BUNDLE in "files" (shell.html + app/*.js + theme.css + copy.json, per the tool description); when the turn shows a CURRENT BUNDLE, send only the files that change with "merge": true. THE REQUEST IS THE SPEC: build exactly what the user asked, with their own names and wording, and add nothing they did not imply. TILE, NOT APP: one main thing on screen in large type (15px text floor, 20px for the values that matter), a slim header, an optional one-line footer; everything secondary tucked away like a phone app (a small header avatar stack, a "?" help icon opening a short card, a "⋯" menu for occasional actions, a bottom sheet for secondary lists and editors); numbers inside the thing they count, never a separate chart or results panel; light IdeaBoard look (white, #1c7ce2, Source Sans Pro); the smallest tile size that fits. It is shared by every board member: render after \'mfartifactready\', only from state, with MFArtifact.render(rootEl, html) (never innerHTML), handlers attached once by delegation, per-user data keyed by user id, a small header avatar stack of the members plus each person\'s avatar on what they created, picked or own (initial on a color hashed from the user id, photo layered on when set). The runtime API is EXACTLY getState, setState, onStateChange, getData, me, users, onUsersChange, readonly, theme, copy, t, render, tools.ai, tools.pickAsset; readiness is the \'mfartifactready\' document event. A tile that throws on load or renders blank is rejected and not stored.',
+        clientFillContract: 'render_artifact ships a RUNNABLE tile, not a picture of one: a BUNDLE in "files" (shell.html + app/*.js + theme.css + copy.json, per the tool description); when the turn shows a CURRENT BUNDLE, send only the files that change with "merge": true. THE REQUEST IS THE SPEC: build exactly what the user asked, with their own names and wording, and add nothing they did not imply. TILE, NOT APP: one main thing on screen in large type (15px text floor, 20px for the values that matter), a slim header, an optional one-line footer; everything secondary tucked away like a phone app (a small header avatar stack, a "?" help icon opening a short card, a "⋯" menu for occasional actions, a bottom sheet for secondary lists and editors); numbers inside the thing they count, never a separate chart or results panel; light IdeaBoard look (white, #1c7ce2, Source Sans Pro); the smallest tile size that fits. It is shared by every board member: render after \'mfartifactready\', only from state, with MFArtifact.render(rootEl, html) (never innerHTML), handlers attached once by delegation, per-user data keyed by user id, a small header avatar stack of the members plus each person\'s avatar on what they created, picked or own (initial on a color hashed from the user id, photo layered on when set). PUBLIC VIEW: when MFArtifact.isPublic() is true (a public-link visitor, readonly too) show no person names, initials or photos anywhere and no setup forms or inputs: neutral labels such as "Person 1", content read-only, one plain line when there is nothing yet. The runtime API is EXACTLY getState, setState, onStateChange, getData, me, users, onUsersChange, readonly, isPublic, theme, copy, t, render, tools.ai, tools.pickAsset, tools.image; readiness is the \'mfartifactready\' document event. A tile that throws on load or renders blank is rejected and not stored.',
     },
     {
         // Content-only update of an artifact the user is editing: the question bank, card
@@ -3943,142 +4097,10 @@ DESIGN DOCUMENT (one page):
 "els" are in drawing order: the first is at the back. Coordinates are px from the canvas top-left; x,y is an element's top-left corner before rotation.
 An element may run past the canvas edge: the canvas clips it. Use that for full-bleed photos and for shapes cut off by the edge.
 
-<fill> is "#rrggbb", or a gradient {"type":"linear","angle":135,"stops":[{"o":0,"c":"#ff7a59"},{"o":1,"c":"#ff3d77"}]} (angle as in CSS linear-gradient: 90 runs left to right, 180 top to bottom, 135 top-left to bottom-right), or {"type":"radial","stops":[...]} (centre outwards), or a pattern {"type":"pattern","kind":"dots","color":"#1c7ce2","bg":"#e8f1fc","size":24} (kind: dots | grid | stripes | diagonal | checks | cross | waves | zigzag | confetti | grain | paper; grain and paper are textures; size: the repeat in px).
-
-Every element may also carry: "id" (keep it when editing), "rot" (degrees, clockwise about its centre), "op" (opacity 0-1), "shadow" {"x":0,"y":12,"blur":30,"color":"#000000","op":0.25} (also a glow: x 0, y 0, a bright colour), "g" (a group name: elements sharing one move and select together, e.g. a speech bubble and its words).
-
-TEXT {"type":"text","x","y","w","text","font","size","weight","color","align", optional "italic","lh","ls","upper","deco","stroke","bg"}
-- text: the words; "\\n" breaks a line. It wraps at w, and its height follows its lines (no "h").
-- font: a Google Fonts family name. size: px. weight: 100-900. color: "#rrggbb". align: left | center | right.
-- lh: line height as a multiple of the size (0.9-1.1 for display type, 1.3-1.6 for body). ls: letter spacing in em (-0.03 to 0.3; wide for small caps labels).
-- upper: true for all caps. italic: true. deco: underline | strike.
-- stroke: {"color","w"} outlined letters. bg: {"color","pad","radius"} a solid box behind the words (a label or highlight).
-- Inside "text", **word** sets it bold, *word* italic and ==word== in the text's "accent" colour: one word that stands out without a second text box.
-- list: bullet | number sets each line as a list item with its marker. fill: a gradient <fill> across the letters.
-
-SHAPE {"type":"shape","shape","x","y","w","h","fill", optional "stroke","sw","dash","radius"}
-- shape: rect | ellipse | triangle | diamond | pentagon | hexagon | octagon | star | arrow | chevron | trapezoid | parallelogram | plus | heart | halfcircle | quarter | pie | ring | arch | crescent | drop | righttriangle | cross | check | star4 | star6 | star8 | seal | shield | pin | cloud | blob | wave | torn | tape | banner | flag | cornerribbon | bookmark | tag | ticket | arrow2 | notch | curvedarrow | uturn | circlearrow | bracket | brace | corners | cube | cylinder | bubble | speech | thought | burst.
-- fill: <fill> or "none". stroke: "#rrggbb" outline colour, sw: its width px, dash: solid | dashed | dotted. radius: corner radius px (rect).
-
-IMAGE {"type":"image","x","y","w","h","prompt", optional "fit","radius","mask","filter","stroke","sw"}
-- prompt: what the picture shows. fit: cover (default, fills and crops) | contain. radius: corner radius px. stroke / sw: a border round the picture.
-- Photo collages and comic pages are grids of image panels with even gutters; a comic panel has a dark border ("stroke":"#111111", "sw" about 0.6% of the canvas). Speech bubbles are a "speech", "bubble" or "thought" shape with a text over it in the same "g"; sound effects a "burst" shape.
-- mask: none | ellipse | any shape name above (cuts the picture to that shape). filter: none | grayscale | noir | sepia | warm | cool | vivid | fade.
-- cast: the ids from the design's "look" of the characters or products the picture shows, e.g. ["maya"].
-
-LOOK (on the design, beside "els") {"style","cast":[{"id","description"}]} when its pictures belong together: comic panels, a story told in frames, a series of product shots, a set of portraits.
-- style: one art direction every picture shares (medium, line work, palette, lighting), e.g. "bold ink comic art, flat cel colours, halftone shading".
-- cast: each recurring character or product once, up to 4: "id" a short name, "description" its fixed look (age, build, face, hair, clothes and their colours; for a product its shape, material, colour, label). Every picture of it is painted from one reference drawing, so it looks the same in each.
-- Then each picture's "prompt" tells only its own scene: the action, the setting, the shot, the expression. Do not restate the style or the cast's looks there.
-
-LINE {"type":"line","x","y","w","color","sw", optional "dash","cap1","cap2","style","bend","from","to"}
-- a line from (x, y) to (x + w, y), turned by "rot". sw: thickness px. cap1 / cap2 (start / end): none | arrow | open | diamond | bar | round | circle.
-- style: straight | curve | elbow | wave | zigzag | sketch; bend: -100 to 100, how far a curve or an elbow strays. from / to: the ids of two elements it joins (a connector: it then runs between their edges, whatever x, y and w say).
-
-ICON {"type":"icon","x","y","w","h","icon","color", optional "style","sw","color2"}
-- icon: one of these names: check, check-circle, x, x-circle, plus, minus, plus-circle, info, alert-triangle, help-circle, star, heart, bookmark, flag, bell, search, settings, menu, more, filter, eye, lock, unlock, key, circle, arrow-right, arrow-left, arrow-up, arrow-down, arrow-up-right, chevron-right, chevron-down, refresh, trending-up, trending-down, mail, phone, message, messages, send, at-sign, megaphone, mic, video, share, user, users, user-plus, user-check, team, smile, person, briefcase, building, store, shopping-cart, shopping-bag, credit-card, wallet, coin, coins, banknote, piggy-bank, receipt, tag, percent, bar-chart, line-chart, pie-chart, target, gauge, database, layers, grid, list, presentation, clock, calendar, hourglass, stopwatch, alarm-clock, laptop, monitor, smartphone, cloud, wifi, battery, chip, code, link, shield, shield-check, globe, server, download, upload, camera, image, play, pause, music, headphones, film, book, pencil, palette, home, map-pin, map, compass, plane, car, truck, bus, bicycle, train, ship, luggage, coffee, utensils, pizza, apple, cake, wine, burger, ice-cream, heart-pulse, pill, medical, first-aid, stethoscope, syringe, dumbbell, tooth, sun, moon, cloud-rain, snowflake, umbrella, leaf, tree, flower, droplet, flame, mountain, bolt, recycle, earth, graduation-cap, book-open, lightbulb, award, trophy, puzzle, ruler, brain, gift, clipboard, folder, file, file-text, paperclip, trash, printer, package, scissors, rocket, sparkles, crown, gem, thumbs-up, hand-heart, fingerprint, planet, quote. Another word draws the closest of them.
-- style: solid (filled, the default) | line (outlined; sw its stroke weight, 1-3). color: "#rrggbb". Keep w = h. color2: a second colour that fills the form behind the lines (duotone). One style and size per set of icons.
-- bg: {"shape":"circle","color":"#e8f1fc"} a badge behind the glyph (shape: circle | rounded | square | blob | ring); the glyph sits inside it, so the box is the badge.
-
-TABLE {"type":"table","x","y","w","h","rows", optional "head","font","size","color","headBg","headColor","stripe","line","align","radius"}
-- rows: [["Plan","Price"],["Pro","$12"], ...] up to 20 rows of 8 cells; the first is the header unless "head": false. Rows share the height evenly. stripe: a colour for every other row.
-
-QR {"type":"qr","x","y","w","data", optional "color","bg"}: a scannable QR code that opens "data" (a link or text); square; dark on light.
-
-MAP {"type":"map","x","y","w","h", optional "look","regions","pins","focus","land","color","low","stroke","ink","font","size"}: a real map of the world's countries.
-- look: flat | dots | outline (dots: a dot-matrix map, the classic infographic look). land: the colour of countries left plain.
-- regions: [{"id":"US","value":27.4}, {"id":"FR"}] by ISO two-letter code: values shade from "low" to "color" (a choropleth); no value marks the country in "color".
-- pins: [{"lat":48.86,"lng":2.35,"label":"Paris"}] up to 30. focus: ["DE","FR","IT"] frames those countries (a region); none shows the world (about 2.5 times as wide as tall).
-
-CHART {"type":"chart","kind","x","y","w","h","data", optional "colors","font","size","color","track","unit","prefix","max","values","labels"}
-- kind: column | grouped | stacked | bar | line | area | pie | donut | scatter | radar | heatmap | treemap | waffle | progress | ring | gauge. column / bar / line / area / pie / donut / treemap show one value per row; progress (a bar), ring, gauge (a half ring) and waffle (100 cells) show one value out of "max" (default 100).
-- data: [{"label":"Q1","value":42}, ...], up to 12 rows (one row for the one-value kinds). Use only numbers the request gives, the web research gives, or that are widely published; never invent statistics.
-- Several series (grouped, stacked, line, area, radar, heatmap): each row carries "values": [one number per series] and the chart names them in "series": ["2024","2025"]; the chart draws its own legend for them, so add none beside it. scatter: each row a point, "x" its place across and "value" its height.
-- colors: the series colours (one colour for all bars, or one per row; pie and donut take one per row). font / size / color: the labels' face, px size and colour. track: the empty part of a bar or ring. unit: a suffix such as "%"; prefix such as "$". values / labels: false hides them.
-IN THIS TOOL an image's picture is asked for with "src": "mfimg::" plus its description when the render includes imagery (see the imagery note); otherwise leave image elements out. A real picture URL may also go in "src".
+${DESIGN_ELEMENTS}
 Canvas sizes by category: Social posts: Instagram post 1080x1080, Instagram portrait 1080x1350, Facebook post 1200x630, LinkedIn post 1200x627, X post 1600x900, Pinterest pin 1000x1500, Threads post 1080x1350, Tumblr graphic 540x810, Meme 1080x1080, Meme 1200x900; Stories and video covers: Instagram story 1080x1920, Facebook story 1080x1920, TikTok cover 1080x1920, YouTube thumbnail 1280x720, YouTube Shorts cover 1080x1920; Social ads: Instagram ad 1080x1080, Instagram story ad 1080x1920, Facebook ad 1200x628, LinkedIn ad 1200x627, Pinterest ad 1000x1500, YouTube video ad cover 1280x720; Web ads: Medium rectangle 300x250, Large rectangle 336x280, Leaderboard 728x90, Half page 300x600, Wide skyscraper 160x600, Mobile banner 320x50; Covers and headers: Facebook cover 1640x624, Facebook event cover 1920x1005, LinkedIn banner 1584x396, X header 1500x500, YouTube banner 2560x1440, Twitch banner 1200x480, Email header 1200x400, Blog header 1200x630, Website hero 1920x600, Etsy shop cover 1200x300; Posters: Poster 1800x2400, A3 poster 1754x2480, A2 poster 2480x3508, Large poster 3600x5400, Movie poster 2700x4000, Event poster 1080x1350, Digital sign 1080x1920; Print: Flyer 1240x1748, Flyer 1275x1650, Brochure cover 1650x1275, Business card 1050x600, Postcard 1748x1240, Bookmark 600x1800, Ticket 1275x420, Label 900x600, A4 page 1240x1754, One-pager 1275x1650; Menus: Menu 1240x1754, Menu 1275x1650, Menu board 1920x1080, Table tent card 600x900, Price list 1080x1920; Infographics: Infographic 800x2000, Infographic post 1080x1350, Infographic 1080x1080, Infographic 2000x1125; Cover art: Podcast cover 3000x3000, Album cover 3000x3000, Playlist cover 1080x1080, Book cover 1410x2250, Ebook cover 1600x2560, Magazine cover 1240x1754; Product and shop: Amazon product image 2000x2000, Etsy listing photo 2700x2025, Shopify product image 2048x2048, Product label 900x600, Hang tag 600x1050, Shop icon 500x500; Cards and invitations: Invitation 1500x2100, Wedding invitation 1500x2100, Birthday invitation 1500x1500, Greeting card 2100x1500, Thank-you card 1800x1200, Gift certificate 1800x1200, Certificate 1754x1240, Recipe card 800x1200; Comics and collages: Comic page 1988x3075, Comic strip 3000x1000, Photo collage 1500x1200; Brand: Logo 500x500, Profile picture 800x800, Desktop wallpaper 1920x1080, Phone wallpaper 1080x2340.
 
-✅ DESIGN CRAFT
-- One clear focal point and a strong hierarchy: the headline is 3-6 times the
-  body size; at most 3-4 text sizes; captions and labels small and often
-  letter-spaced uppercase.
-- Lay it out on a grid: consistent outer margins (6-9% of the short side),
-  aligned left edges or a centred axis, related items grouped, generous space.
-- Type: one or two Google font families chosen for the mood (a display face
-  for headlines, a clean text face for the rest). Display type is set tight
-  (lh 0.9-1.1). Body text is at least 2.4% of the canvas's short side so it
-  reads on a phone.
-- Colour: a deliberate palette of 2-4 colours plus neutrals. Every text has
-  strong contrast (4.5:1) with whatever is behind it; over a photo, put a
-  scrim (a shape with "op") or a solid block behind the words.
-- Size every text box: w wide enough for its longest word and for the line
-  breaks you want (about 0.55 x size px per character for most faces, 0.42
-  for condensed display faces such as Bebas Neue, Oswald or Anton). The text
-  wraps inside w and its height follows the lines.
-- Buttons and badges are a rect (radius for a pill) with a text centred over
-  it: the text's x, w and centre line match the rect's.
-- Shapes do the decorating: colour blocks, circles, blobs of colour cut off by
-  the canvas edge, dividers, frames; lines for rules and arrows. Shapes and
-  pictures may run off the canvas edge; every word stays fully inside it,
-  clear of the margin.
-- Real copy for the request: the actual headline, offer, date, place, prices
-  and call to action, never lorem ipsum. Details the user did not give get
-  plausible values.
-- Facts and figures are real, never made up. Use, in this order: figures the
-  request gives; figures from the web research block when the request carries
-  one (cite the source it names); otherwise widely published figures you know
-  well (a country's GDP or population, a company's revenue, market value,
-  users or founding year, a record): give the year they belong to, round them
-  to 2-3 significant figures and mark them as estimates ("approx.", "est.").
-  Never invent a figure nobody publishes (a survey result, an opinion share, a
-  market share you do not know) and never credit one to a study or an
-  organisation the request or the research does not name, unless that
-  organisation is the standard publisher of that series. Only when no real
-  figures exist for the subject, use sample figures and say so in a small
-  "Sample data" note.
-- Icons: an "icon" element beside a stat, a step, a feature or a contact line
-  reads faster than words alone; keep icons one size and one colour per set.
-- Numbers that compare belong in a "chart" (column, bar, line, pie, donut) or
-  a progress bar or ring for one share, not in hand-drawn shapes.
-
-✅ INFOGRAPHICS AND DATA PIECES - they SHOW the data; a list of text cards is
-not an infographic.
-- Lead with the finding: a headline that states it, and one hero visual (a big
-  number or the main chart) taking the most space.
-- A request for the top, biggest or leading things of a kind is a ranking:
-  rank them by one measure you state (market value, revenue, users, size) and
-  show that measure for each, as a ranked chart or as values beside them.
-- Figures by country or place belong on a "map" (countries shaded by value,
-  or pins), places named without figures on a dotted map with pins.
-- Every set of comparable numbers becomes a chart with its values labelled:
-  ranked bars for a ranking (sorted, biggest first), columns or a line over
-  time, a donut or pie for parts of a whole. The unit and the year go in its
-  title or subtitle.
-- Each item in a set gets a visual anchor beside its words: an icon, a rank
-  number in a disc, its value large, or a bar sized to its value. Items of a
-  set repeat one module: the same size, the same parts in the same places.
-- Combine 2-4 visual devices: a row of big stats, a chart, an icon list, a
-  timeline, a comparison, a pictogram row of repeated icons, a process of
-  steps. Number the sections when the piece reads as a sequence.
-- With no size named, use an "Infographic" canvas: a tall one gives the
-  sections room.
-- End with a small source line: where the figures come from and their year.
-- It must look GRAPHIC, not like a web page: pictures, shapes and numbers carry
-  more of the area than words. Avoid stacks of white text cards with an accent
-  bar (that is a UI look). Instead:
-  - big numbers set huge in the accent colour, with a short label;
-  - each point's icon large inside a coloured circle or blob (icon ~45% of the
-    badge), the same treatment for every point;
-  - a sequence drawn as a path: numbered discs joined by a line or arrows,
-    zigzagging down the page, or a winding road, or a timeline spine;
-  - colour bands or blocks that change from section to section, shapes cut off
-    by the edges, decorative dots and rings that echo the palette;
-  - words short: a 2-5 word title and at most ~14 words per point.
-- Vary the layout from section to section (a hero stat, then a chart, then an
-  icon grid, then a path); never the same module repeated down the page.
-- 6 to 25 elements is a normal design; dense pieces such as menus and
-  infographics run 40 to 120. The first element is usually the background
-  treatment (or set "bg").
+${DESIGN_CRAFT}
 
 MODIFYING an existing frame: send the COMPLETE updated page, keeping the ids and every key of what you keep; something removed is left out, something added has no id. Keep w and h unless the user changes the size.
 
@@ -4159,6 +4181,171 @@ IMPORTANT: Always display the returned URL to the user.`,
         clientPromptField: null,
         clientTransform: null,
         recipeOutputKeys: ['design']
+    },
+    {
+        // Video Maker frame (MF_VideoMaker_ID): a motion video whose scenes are design
+        // pages with motion, written as the in-app generator writes it. The description is
+        // the shared design spec plus genvideomaker.js videoPrompt's MOTION, SCENES and
+        // VIDEO CRAFT pasted verbatim: regenerate it from them when either changes. The frame
+        // turns the scenes into its pages and applies the same motion rules
+        // (video-anim.js fromScenes + tidyGen), so both paths make the same video.
+        mcpToolName: 'render_videomaker',
+        planUIType: 'video',
+        // web tools for real footage and music ("web::" clips and tracks, imported free)
+        webResearch: true,
+        mcpDeclareLine: 'A motion VIDEO built from animated scenes of text, shapes, icons, charts and pictures, exported as MP4: explainer, product launch or promo video, app tutorial or demo, animated social post or reel, ad, intro or logo reveal, data story, event promo. NOT a generated footage clip of a filmed-looking scene (render_video), NOT a shot-by-shot plan of a video (render_storyboard), NOT a still graphic (render_design).',
+        // only when the user asked for something that moves; a still piece is a design
+        mcpRequiresUserWords: [
+            'video', 'videos', 'animation', 'animations', 'animate', 'animated', 'motion', 'motion graphics',
+            'movie', 'clip', 'film', 'reel', 'reels', 'explainer', 'promo', 'trailer', 'teaser', 'commercial',
+            'intro', 'outro', 'logo reveal', 'mp4', 'slideshow', 'moving', 'kinetic'
+        ],
+        mcpRequiresFallbackTool: 'render_design',
+        // the bridge hands the agent a contact sheet of the drawn video, and one call with
+        // "fixOf" replaces it in place (the component's agentPreview)
+        agentPreview: true,
+        imageSlots: true,
+        imageSlotForm: 'url',
+        imagesOnGuidance: `THIS RENDER INCLUDES AI-GENERATED IMAGERY - let pictures anchor the scenes that need them.
+- A scene's one dominant photo or illustration (full-bleed with the words on a scrim, or a picture panel beside a colour field) beats several small ones. At most 6 pictures in the whole video.
+- An image element's "src" is "mfimg::" followed by a plain description of the picture (subject, setting, style, light), with no text, letters or logos in it. The same picture in several scenes uses the same description, so it carries across.
+- Text over a photo needs contrast: a shape with "op" behind the words, or the words on a colour field beside the picture.
+- Slow motion on pictures keeps the frame alive: "emph": {"fx":"kenburns"}.`,
+        imagesOffGuidance: `THIS RENDER HAS NO IMAGERY - colour, shape, type and motion carry the video.
+- Colour fields, gradients, bold type lockups, icons, charts and geometric compositions do the work a photograph would have done.
+- Emit NO image elements at all.`,
+        mcpDescription: `Create an editable motion VIDEO (render_videomaker) in a MockFlow IdeaBoard Video Maker frame: explainers, product launch and promo videos, app tutorials, animated social posts and reels, ads, intros and logo reveals, data stories, event promos. You write the video as a sequence of SCENES, each one finished graphic design page of positioned text, shapes, pictures and lines brought to life by motion, as JSON, never HTML or CSS; MockFlow plays it, the user edits every scene and exports it as MP4. For a still graphic use render_design; for a generated footage clip use render_video.
+
+VIDEO DOCUMENT:
+{ "title": "short name (2-4 words, Title Case)", "w": canvas width px, "h": canvas height px, "look": {...} (only when its pictures belong together), "scenes": [ { "dur", "trans", "cam", "bg", "els": [ element, ... ] }, ... ] }
+Every scene has the video's "w" and "h". In each scene "els" are in drawing order: the first is at the back. Coordinates are px from the canvas top-left; x,y is an element's top-left corner before rotation.
+An element may run past the canvas edge: the canvas clips it. Use that for full-bleed photos and for shapes cut off by the edge.
+
+✅ MOTION (on any element, optional) "anim": {"in": {"fx","at","dur","ease"}, "emph": {"fx","dur"}, "out": {"fx","dur","ease"}}
+- in: how the element arrives. fx: fade | rise | drop | slide-left | slide-right | pop | zoom | wipe | blur | type | draw | count | mask | words. at: seconds after
+  the scene starts. dur: seconds. ease: smooth | snappy | bouncy | linear (smooth when left out).
+  "type" sets a text letter by letter; "words" reveals it word by word; "mask"
+  rises into place from behind its own edge; "draw" draws a line from its start
+  (other elements reveal along it); "count" counts the numbers in a text or the
+  values of a chart up from zero; "wipe" reveals it from left to right.
+- emph: motion once it has arrived. fx: pulse | wiggle | float | spin | drift | kenburns. dur: one beat in seconds.
+  "drift" and "kenburns" are slow and continuous through the rest of the scene
+  (kenburns a slow zoom, for pictures); the others loop as an accent.
+- out: how it leaves at the end of its scene. fx: fade | sink | lift | pop | wipe | blur.
+- "link" (on any element, optional): a short name for something that recurs.
+  The element with the same link in the next scene is the same thing in its
+  new place; when that scene arrives with a "morph" transition it moves,
+  resizes and recolours there. An element repeated unchanged (same text, same
+  picture, same shape and colour) and the main headline carry across on their
+  own; what has no partner leaves along the direction of travel while the new
+  scene's parts arrive from the other side.
+- These fields are the whole motion vocabulary: no keyframes, paths or other keys.
+
+✅ SCENES
+- "dur": the scene's length in seconds. "trans": {"fx","dur"} how the scene
+  arrives from the one before (fx: none | fade | slide | wipe | zoom | morph; dur 0.2-1.2 s).
+- "cam" (optional): {"fx","amt"} a slow camera move through the scene (fx:
+  push-in | push-out | pan-left | pan-right; amt 0.2-2, 1 is gentle).
+
+✅ VIDEO CRAFT
+- Tell one idea in order: an opening that makes the viewer stay, scenes that
+  each carry one point, and a close that lands it. 3 to 6 scenes unless the
+  user asks for another count (at most 12).
+- Honor a length the user names; otherwise 15 to 30 seconds in all. Each scene
+  stays on screen long enough to read its words calmly after they arrive.
+- A scene is seen for seconds, not studied: fewer words and bigger type than a
+  poster, one focal point, the rest supporting it. Every scene is complete on
+  its own and composed for the whole canvas, its shape included: no large
+  dead areas, never a lone heading on a blank field.
+- One visual system for the whole video (palette, fonts, shape language,
+  margins) so it reads as one piece; vary the composition from scene to scene.
+- Motion directs attention in reading order: what should be seen first arrives
+  first, then the supporting parts follow in short staggers, each with the
+  effect that suits what it is. Most elements get an entrance; backgrounds and
+  large colour fields are simply there when the scene opens. Everything has
+  arrived well before the scene ends so it can be read. Parts that form one
+  thing (a button and its label, a badge and its glyph) move as one: the same
+  entrance at the same moment.
+- It should feel like motion design, not a slideshow of separate slides:
+  the story flows from scene to scene (what recurs is carried across with a
+  link and a morph rather than cut away and redrawn), the frame is never fully
+  still (a slow camera, slow motion on pictures), and type performs rather
+  than just appearing. Vary these across the video; the same treatment on
+  every scene becomes a slideshow again.
+- A cut is not a stop: a scene's first entrances begin while its transition is
+  still moving, so the move hands straight into the build.
+- Use looping accents sparingly, on the one thing a scene is about. Exits are
+  rare: the transition already carries the viewer on.
+- Transitions suit the pace and the content; a scene that continues the one
+  before morphs into it, on the same "bg": a changed background fades the
+  whole frame under the move. Change it only where the story changes chapter.
+
+✅ EACH SCENE'S PAGE (the design spec)
+${DESIGN_ELEMENTS}
+Video sizes: Landscape video (16:9) 1920x1080, Reel or story (9:16) 1080x1920, Square post (1:1) 1080x1080, Portrait post (4:5) 1080x1350, Cinema (21:9) 2560x1080, HD 720p (16:9) 1280x720. Landscape when the request names no medium.
+
+${DESIGN_CRAFT}
+
+MODIFYING an existing video: send the COMPLETE updated video, keeping the ids and every key of the scenes and elements you keep; something removed is left out, something added has no id. Keep w and h unless the user changes the size. A scene's "say" is its voiceover line; "voiced" and "sound" are read only (MockFlow keeps the recorded voice and music).
+
+SOUND: a video is silent unless the user asks for a voiceover, narration or music; then add "say" to the scenes and "music" to the video (see their fields).
+
+FOOTAGE: a video about something REAL (a country, city, landmark, event, nature, a real product) is stronger with real moving footage on some scenes. Find it with WebSearch/WebFetch and add a clip element whose "src" is "web::" followed by the direct video file URL (.mp4, .webm or .ogv, a URL you saw in a page you fetched, never one you composed), only from sources that allow reuse: Wikimedia Commons (the upload.wikimedia.org file; a 480p or 720p transcode where there is one), Pexels, Pixabay, Coverr or an official press kit. MockFlow imports it free (silent, up to 60 s; "trim" picks the part). A clip box that covers the whole scene is filled edge to edge, one inside the scene keeps its shape; text over full-bleed footage needs a shape with "op" behind it. If no allowed footage turns up, leave the clip out and design the scene.
+
+IMPORTANT: Always display the returned URL to the user.`,
+        mcpInputSchema: {
+            type: 'object',
+            properties: {
+                title: { type: 'string', description: 'Short video name shown as the frame title' },
+                w: { type: 'number', description: 'Canvas width in px' },
+                h: { type: 'number', description: 'Canvas height in px' },
+                look: { type: 'object', description: 'Shared look of pictures that belong together: {"style","cast":[{"id","description"}]} (keep it, with any "ref", when modifying)' },
+                music: { type: 'string', description: 'ONLY when the user asks for music, a soundtrack or sound. Best: a real track that allows reuse, found with WebSearch/WebFetch, as "web::" followed by the direct audio file URL (Wikimedia Commons, Free Music Archive, Pixabay, Incompetech, or the artist\'s own free download; a URL you saw in a page you fetched, never one you composed); MockFlow imports it free. Otherwise the music in a few words (genre, mood, tempo, main instruments; instrumental) and MockFlow makes it. Leave it out when not asked, and when modifying a video whose "sound" already has music.' },
+                scenes: {
+                    type: 'array',
+                    description: 'The scenes in order',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string', description: 'Only when modifying: the id of a scene kept from the existing video' },
+                            dur: { type: 'number', description: 'Seconds on screen' },
+                            trans: {
+                                type: 'object',
+                                description: 'How the scene arrives from the one before (the first scene has none). A scene that continues the one before uses "morph" (Smart move) on the SAME "bg": what recurs (same text, picture or shape, the headline, or a shared "link") travels, resizes and recolours into its new place instead of cutting. Other effects only where the story changes chapter.',
+                                properties: {
+                                    fx: { type: 'string', enum: ['morph', 'fade', 'slide', 'wipe', 'zoom', 'none'] },
+                                    dur: { type: 'number', description: 'Seconds, 0.2-1.2' }
+                                }
+                            },
+                            cam: {
+                                type: 'object',
+                                description: 'A slow camera move through the scene, so the frame is never fully still',
+                                properties: {
+                                    fx: { type: 'string', enum: ['push-in', 'push-out', 'pan-left', 'pan-right'] },
+                                    amt: { type: 'number', description: '0.2-2, 1 is gentle' }
+                                }
+                            },
+                            bg: { description: 'Scene background: "#rrggbb" or a gradient object' },
+                            bgImg: { type: 'object', description: 'Scene picture behind everything {"src","op"} (keep it when modifying)' },
+                            els: { type: 'array', description: 'The elements in drawing order (first at the back): the design element schema, plus "anim" and "link", plus at most ONE footage clip per scene: {"type":"clip","x","y","w","h","src":"web::<direct video file URL>", optional "trim":[startSec,endSec]} (see FOOTAGE)' },
+                            say: { type: 'string', description: 'ONLY when the user asks for a voiceover, narration or sound (or the video being modified already has "say" lines: keep them word for word unless the change is about them): what the narrator says while this scene shows, one or two short spoken sentences that add to the words on screen rather than reading them out, about 2.5 words per second of "dur" (never more than 3; lengthen "dur" for more words). The lines flow as one story. No stage directions, emoji or hashtags. MockFlow reads it aloud and adds captions.' }
+                        },
+                        required: ['dur', 'els']
+                    }
+                }
+            },
+            required: ['w', 'h', 'scenes']
+        },
+
+        // Client-side rendering: MF_VideoMaker_ID.sendGenText reads gentext.data.generateddesign
+        // and the frame takes the scenes as its pages (video-anim.js fromScenes)
+        clientAitype: 'gencomp',
+        clientComp: 'MF_VideoMaker_ID',
+        clientDataField: 'generateddesign',
+        clientPrompt: 'video',
+        clientPromptField: null,
+        clientTransform: null,
+        recipeOutputKeys: ['video']
     },
     {
         // DesignFrame (legacy, MF_DesignFrame_ID): retired in favour of render_design.
@@ -4552,9 +4739,9 @@ The picture is generated by MockFlow AI in the user's browser, not by you: write
     {
         mcpToolName: 'render_video',
         mediaComponent: true,
-        mcpDescription: `Generate a short video clip - animation, motion graphics, cinematic or any moving content - and place it on the board as a video player component.
+        mcpDescription: `Generate a short AI video clip of footage - a cinematic, filmed-looking or animated scene with a moving camera - and place it on the board as a video player component.
 
-NOT for a shot-by-shot plan of a video (render_storyboard) and NOT for the look and feel of one (render_moodframe).
+NOT for a video built from animated text, shapes and pictures across scenes, such as an explainer, launch, promo, tutorial or social reel (render_videomaker), NOT for a shot-by-shot plan of a video (render_storyboard) and NOT for the look and feel of one (render_moodframe).
 
 The clip is generated by MockFlow AI in the user's browser, not by you: write a vivid, self-contained prompt describing the scene, motion, camera and style, and call this once. Video is one of the most expensive things MockFlow generates, so the user confirms the spend before it runs; the clip appears on their board when it is ready - never output a URL, and do not wait for one.`,
         mcpInputSchema: {
@@ -4808,6 +4995,7 @@ var GROUNDING_EXEMPT = [
     'render_wireframe',
     'render_prototypelite',
     'render_design',
+    'render_videomaker',
     'render_designframe',
     'render_moodframe',
 	'render_multiboard',
@@ -4833,6 +5021,27 @@ for (var _gi = 0; _gi < IDEABOARD_MCP_REGISTRY.length; _gi++) {
     if (GROUNDING_EXEMPT.indexOf(_ge.mcpToolName) !== -1) continue;
     _ge.mcpDescription = String(_ge.mcpDescription || '') + CONTENT_GROUNDING;
 }
+
+// A video scene's elements are design elements plus their motion: the element schema
+// comes from render_design, so the two never drift apart
+(function() {
+    var find = function(n) { for (var i = 0; i < IDEABOARD_MCP_REGISTRY.length; i++) if (IDEABOARD_MCP_REGISTRY[i].mcpToolName === n) return IDEABOARD_MCP_REGISTRY[i]; return null; };
+    var design = find('render_design'), video = find('render_videomaker');
+    if (!design || !video) return;
+    var item = JSON.parse(JSON.stringify(design.mcpInputSchema.properties.els.items));
+    var fx = function(list, what) { return { type: 'object', description: what, properties: { fx: { type: 'string', enum: list }, at: { type: 'number', description: 'Seconds after the scene starts' }, dur: { type: 'number' }, ease: { type: 'string', enum: ['smooth', 'snappy', 'bouncy', 'linear'] } } }; };
+    item.properties.anim = {
+        type: 'object',
+        description: 'Motion. Entrances in reading order with short staggers; a scene\'s first entrance starts while its transition is still moving',
+        properties: {
+            'in': fx(['fade', 'rise', 'drop', 'slide-left', 'slide-right', 'pop', 'zoom', 'wipe', 'blur', 'type', 'draw', 'count', 'mask', 'words'], 'How it arrives'),
+            emph: fx(['pulse', 'wiggle', 'float', 'spin', 'drift', 'kenburns'], 'Motion once arrived (drift and kenburns are slow and continuous; the others loop, sparingly)'),
+            out: fx(['fade', 'sink', 'lift', 'pop', 'wipe', 'blur'], 'How it leaves at the end of its scene (rare)')
+        }
+    };
+    item.properties.link = { type: 'string', description: 'A short name for something that recurs: the element with the same link in the next scene is the same thing' };
+    video.mcpInputSchema.properties.scenes.items.properties.els.items = item;
+})();
 
 // Helper: build tool definitions array for MCP servers.
 //
