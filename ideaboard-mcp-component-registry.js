@@ -4222,15 +4222,21 @@ Every scene has the video's "w" and "h". In each scene "els" are in drawing orde
 An element may run past the canvas edge: the canvas clips it. Use that for full-bleed photos and for shapes cut off by the edge.
 
 ✅ MOTION (on any element, optional) "anim": {"in": {"fx","at","dur","ease"}, "emph": {"fx","dur"}, "out": {"fx","dur","ease"}}
-- in: how the element arrives. fx: fade | rise | drop | slide-left | slide-right | pop | zoom | wipe | blur | type | draw | count | mask | words. at: seconds after
+- in: how the element arrives. fx: fade | rise | drop | slide-left | slide-right | pop | zoom | wipe | blur | type | draw | count | mask | words | letters | track | bar | iris | flip. at: seconds after
   the scene starts. dur: seconds. ease: smooth | snappy | bouncy | linear (smooth when left out).
   "type" sets a text letter by letter; "words" reveals it word by word; "mask"
   rises into place from behind its own edge; "draw" draws a line from its start
   (other elements reveal along it); "count" counts the numbers in a text or the
-  values of a chart up from zero; "wipe" reveals it from left to right.
-- emph: motion once it has arrived. fx: pulse | wiggle | float | spin | drift | kenburns. dur: one beat in seconds.
+  values of a chart up from zero; "wipe" reveals it from left to right;
+  "letters" drops a short headline in letter by letter; "track" closes wide-set
+  letters up into place; "bar" sweeps a solid block over the element and pulls it
+  away to show it (optional "color"); "iris" opens it as a circle from its centre;
+  "flip" turns it in like a card. A "draw" on a shape with an outline draws the
+  outline, then its fill comes up.
+- emph: motion once it has arrived. fx: pulse | wiggle | float | spin | drift | kenburns | bounce. dur: one beat in seconds.
   "drift" and "kenburns" are slow and continuous through the rest of the scene
-  (kenburns a slow zoom, for pictures); the others loop as an accent.
+  (kenburns a slow zoom, for pictures); the others loop as an accent ("bounce"
+  hops and lands).
 - out: how it leaves at the end of its scene. fx: fade | sink | lift | pop | wipe | blur.
 - "link" (on any element, optional): a short name for something that recurs.
   The element with the same link in the next scene is the same thing in its
@@ -4243,7 +4249,11 @@ An element may run past the canvas edge: the canvas clips it. Use that for full-
 
 ✅ SCENES
 - "dur": the scene's length in seconds. "trans": {"fx","dur"} how the scene
-  arrives from the one before (fx: none | fade | slide | wipe | zoom | morph; dur 0.2-1.2 s).
+  arrives from the one before (fx: none | fade | slide | wipe | zoom | morph | circle | split | whip | blocks | flash; dur 0.2-1.2 s).
+  "circle" opens the new scene from the middle, "split" opens it as a band from
+  the centre, "whip" is a fast blurred pan, "blocks" sweeps two solid blocks
+  across (optional "color"), "flash" goes through white. Use them for a change
+  of topic; "morph" for a scene that continues the one before.
 - "cam" (optional): {"fx","amt"} a slow camera move through the scene (fx:
   push-in | push-out | pan-left | pan-right; amt 0.2-2, 1 is gentle).
 
@@ -4313,8 +4323,9 @@ IMPORTANT: Always display the returned URL to the user.`,
                                 type: 'object',
                                 description: 'How the scene arrives from the one before (the first scene has none). A scene that continues the one before uses "morph" (Smart move) on the SAME "bg": what recurs (same text, picture or shape, the headline, or a shared "link") travels, resizes and recolours into its new place instead of cutting. Other effects only where the story changes chapter.',
                                 properties: {
-                                    fx: { type: 'string', enum: ['morph', 'fade', 'slide', 'wipe', 'zoom', 'none'] },
-                                    dur: { type: 'number', description: 'Seconds, 0.2-1.2' }
+                                    fx: { type: 'string', enum: ['morph', 'fade', 'slide', 'wipe', 'zoom', 'circle', 'split', 'whip', 'blocks', 'flash', 'none'] },
+                                    dur: { type: 'number', description: 'Seconds, 0.2-1.2' },
+                                    color: { type: 'string', description: 'blocks only: the colour of the leading block (hex)' }
                                 }
                             },
                             cam: {
@@ -5034,8 +5045,8 @@ for (var _gi = 0; _gi < IDEABOARD_MCP_REGISTRY.length; _gi++) {
         type: 'object',
         description: 'Motion. Entrances in reading order with short staggers; a scene\'s first entrance starts while its transition is still moving',
         properties: {
-            'in': fx(['fade', 'rise', 'drop', 'slide-left', 'slide-right', 'pop', 'zoom', 'wipe', 'blur', 'type', 'draw', 'count', 'mask', 'words'], 'How it arrives'),
-            emph: fx(['pulse', 'wiggle', 'float', 'spin', 'drift', 'kenburns'], 'Motion once arrived (drift and kenburns are slow and continuous; the others loop, sparingly)'),
+            'in': (function(o) { o.properties.color = { type: 'string', description: 'bar only: the block colour (hex)' }; return o; })(fx(['fade', 'rise', 'drop', 'slide-left', 'slide-right', 'pop', 'zoom', 'wipe', 'blur', 'type', 'draw', 'count', 'mask', 'words', 'letters', 'track', 'bar', 'iris', 'flip'], 'How it arrives')),
+            emph: fx(['pulse', 'wiggle', 'float', 'spin', 'drift', 'kenburns', 'bounce'], 'Motion once arrived (drift and kenburns are slow and continuous; the others loop, sparingly)'),
             out: fx(['fade', 'sink', 'lift', 'pop', 'wipe', 'blur'], 'How it leaves at the end of its scene (rare)')
         }
     };
